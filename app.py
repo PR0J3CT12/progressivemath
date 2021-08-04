@@ -29,7 +29,7 @@ def main_page():
 
 
 @app.route('/student/<int:student_id>')
-@login_required
+#@login_required
 def student(student_id):
     return render_template("student.html")
 
