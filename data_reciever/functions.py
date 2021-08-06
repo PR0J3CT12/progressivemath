@@ -8,7 +8,6 @@ import time
 import psycopg2
 
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
-service_acc = service_function()
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', None)
@@ -25,8 +24,7 @@ def db_connection():
     Возвращает connection и cursor
     """
     try:
-        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432",
-                                  dbname="Progressive_math")
+        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432", dbname="Progressive_math")
         cursor = connection.cursor()
         return connection, cursor
     except:
@@ -39,7 +37,7 @@ def login_password_creator(name, row):
     Логин и пароль на выход
     """
     trans = translit(name, 'ru', reversed=True).split()
-    if row < 10:
+    if row < 13:
         login = trans[0][0] + trans[1][0] + '0' + str(row - 3)
     else:
         login = trans[0][0] + trans[1][0] + str(row - 3)
@@ -47,10 +45,26 @@ def login_password_creator(name, row):
     return login, password
 
 
-def update_db_students():
+def db_update_students():
+    service = service_function()
+    sheet_name = sheet_names[0]
     connection, cursor = db_connection()
     cursor.execute("SELECT student_row FROM students")
-    used_rows = cursor.fetchall()[0]
+    used_rows = cursor.fetchall()
+    students_amount = len(service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:A40').execute()['values'])
+    jump = False
+    for i in range(0, students_amount):
+        row = i + 4
+        for j in range(len(used_rows)):
+            if row in used_rows[j]:
+                jump = True
+                continue
+        if jump:
+            jump = False
+            continue
+        student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
+        info = login_password_creator(student_name, row)
+        cursor.execute("INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT", (student_name, info[0], info[1], row))
     if connection:
         cursor.close()
         connection.close()
@@ -58,95 +72,64 @@ def update_db_students():
         return 'Не удалось подключиться к базе данных'
 
 
-def df_creator(range_name, service=service_acc):
-    """
-    Название листа на вход
-    DataFrame на выход
-    """
-    data = service.get(spreadsheetId=SPREADSHEET_ID, range=range_name).execute()
-    df = pd.DataFrame(data['values'])
-    return df
-
-
-def borders(df):
-    """
-    DataFrame листа на вход
-    Список из границ работ в данном листе на выход
-    """
-    list_for_work_parser = df.loc[1][4:].to_string(index=False).split("\n")
-    work_parser = []
-    left = 4
-    #mana_list = []
-    top_string_list = df.loc[0].to_string(index=False).split("\n")
-    homework = False
-    for i in range(len(top_string_list)):
-        if 'Мана' in top_string_list[i]:
-            #mana_list.append(i)
-            homework = True
-            break
-    for k in range(len(list_for_work_parser)):
-        if '∑' in list_for_work_parser[k]:
-            if homework:
-                right = k + 4
-                work_parser.append([left, right])
-                left = k + 6
+def info_creator(sheet_name):
+    connection, cursor = db_connection()
+    cursor.execute("SELECT student_id FROM students")
+    number_of_students = len(cursor.fetchall())
+    cursor.execute("SELECT work_name FROM works WHERE sheet_name = %s", (sheet_name,))
+    works_names = cursor.fetchall()
+    service = service_function()
+    current_sheet_students = []
+    data = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:ZZ{number_of_students+3}').execute()['values']
+    all_borders = borders(sheet_name, service)
+    for i in range(len(data)):
+        data[i] = data[i][4:]
+        for j in range(len(data[i])):
+            if data[i][j] == '':
+                data[i][j] = 0
             else:
-                right = k + 4
-                work_parser.append([left, right])
-                left = k + 5
-    return work_parser
+                data[i][j] = int(data[i][j])
+    for student in data:
+        current_student_dict = defaultdict(list)
+        for i in range(len(all_borders)):
+            current_student_dict[works_names[i][0]] = sum(student[all_borders[i][0]:all_borders[i][1]])
+        current_sheet_students.append(current_student_dict)
+    return current_sheet_students
 
 
-def reciever(name, list_name):
-    """
-    На вход имя студента
-    На вход название листа
-    На выход словарь формата {"Имя":..., ..., "Домашняя работа №1":..., ...}
-    """
-    try:
-        df = df_creator(list_name)
-        df_print = df.to_string(index=False)
-        names_list = df[0].to_string(index=False).split("\n")[3:]
-        for i in range(len(names_list)):
-            x = names_list[i].replace('     ', '')
-            if x == name:
-                name_id = i
-                break
-        current_student = df.loc[name_id + 3].to_string(index=False).split("\n")
-        for i in range(1, len(current_student)):
-            x = current_student[i].replace(' ', '')
-            x = x.replace(',', '.')
-            if x == '':
-                x = '0'
-            current_student[i] = x
-        borders_list = borders(df)
-        student = defaultdict(list)
-        #student['Имя и фамилия'] = current_student[0]
-        #student['Сумма баллов'] = current_student[1]
-        #student['Процент выполненной работы'] = current_student[2]
-        #student['Уровень'] = current_student[3]
-        for i in range(len(borders_list)):
-            student[str(df.loc[0][borders_list[i][0]])] = current_student[borders_list[i][0]:borders_list[i][1]]
-        return student
-    except:
-        return 'Ученик не найден!'
+def total_info_creator():
+    total_student_information = info_creator(sheet_names[0])
+    for i in range(1, len(sheet_names)):
+        current_sheet_students = info_creator(sheet_names[i])
+        for j in range(len(current_sheet_students)):
+            total_student_information[j] = total_student_information[j] | current_sheet_students[j]
+    return total_student_information
 
 
-def total_reciever(name):
-    total_dict = defaultdict(list)
-    for i in range(len(sheet_names)):
-        current_dict = reciever(name, sheet_names[i])
-        #print(type(total_dict), type(current_dict))
-        total_dict = total_dict | current_dict
-    return total_dict
+def borders(sheet_name, service):
+    borders_info = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A2:ZZ2').execute()['values'][0][4:]
+    borders_info.append('')
+    all_borders = []
+    left_index = 0
+    for i in range(len(borders_info)):
+        if borders_info[i] == '∑':
+            right_index = i - 1
+            current_borders = [left_index, right_index]
+            if borders_info[i + 1] == '':
+                left_index = i + 2
+            else:
+                left_index = i + 1
+            all_borders.append(current_borders)
+    return all_borders
 
 
 def db_update_works_info():
     service = service_function()
+    connection, cursor = db_connection()
+    cursor.execute("TRUNCATE TABLE works RESTART IDENTITY CASCADE;")
     for i in range(len(sheet_names)):
         sheet_name = sheet_names[i]
-        connection, cursor = db_connection()
-        full_list = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A1:CZ3').execute()['values']
+        full_list = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A1:ZZ3').execute()['values']
         score = full_list[2]
         for_names = list(filter(None, full_list[0][4:]))
         names_list = []
@@ -154,25 +137,45 @@ def db_update_works_info():
             is_homework = True
         else:
             is_homework = False
-        for i in range(len(for_names)):
-            if for_names[i] != 'Мана':
-                names_list.append(for_names[i])
+        for k in range(len(for_names)):
+            if for_names[k] != 'Мана':
+                names_list.append(for_names[k])
         score.append('')
         works_info = []
         amount = 0
         num = 0
         work_counter = 0
-        for i in range(len(score)):
-            if score[i] != '':
-                amount += int(score[i])
+        for c in range(len(score)):
+            if score[c] != '':
+                amount += int(score[c])
                 num += 1
-            if score[i] == '':
+                if int(score[c]) == 0:
+                    num -= 1
+            if score[c] == '':
                 if amount != 0:
                     work_name = names_list[work_counter]
                     works_info.append([work_name, sheet_name, amount, num, is_homework])
                     work_counter += 1
                 amount = 0
                 num = 0
-        for i in range(len(works_info)):
-            cursor.execute("INSERT INTO works(work_name, sheet_name, max_score, exercises, is_homework) VALUES (%s, %s, %s, %s, %s); COMMIT", (works_info[i][0], works_info[i][1], works_info[i][2], works_info[i][3], works_info[i][4]))
-        return works_info
+        for j in range(len(works_info)):
+            cursor.execute("INSERT INTO works(work_name, sheet_name, max_score, exercises, is_homework) VALUES (%s, %s, %s, %s, %s); COMMIT", (works_info[j][0], works_info[j][1], works_info[j][2], works_info[j][3], works_info[j][4]))
+    return 0
+
+
+def db_update_total_grades():
+    connection, cursor = db_connection()
+    cursor.execute("TRUNCATE TABLE total_grades;")
+    cursor.execute("SELECT student_id FROM students;")
+    students = cursor.fetchall()
+    results = total_info_creator()
+    for student in students:
+        current_student_id = student[0]
+        cursor.execute("SELECT work_id, work_name FROM works;")
+        record = cursor.fetchall()
+        current_student_results = results[current_student_id - 1]
+        for work in record:
+            current_work_name = work[1]
+            current_work_id = work[0]
+            current_work_grade = current_student_results[current_work_name]
+            cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score) VALUES (%s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade))
