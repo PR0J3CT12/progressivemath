@@ -1,21 +1,28 @@
 # coding: utf-8
-import pandas as pd
-from service import service_function
 from collections import defaultdict
 from random import randint
 from transliterate import translit
-import time
+from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
+import os.path
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
 
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_colwidth', None)
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
              'Движение класс', 'Движение дз', 'Совместная класс', 'Совместная дз',
              'Обратный ход класс', 'Обратный ход дз', 'Головы и ноги класс',
              'Головы и ноги дз', 'Экзамен письм класс', 'экзамен домашний(баллы 2007)',
              'Экзамен домашний письм', 'Экзамен устный класс', 'Экзамен устный дз']
+
+
+def service_function():
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'credentials.json')
+    credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build('sheets', 'v4', credentials=credentials).spreadsheets().values()
+    return service
 
 
 def db_connection():
@@ -42,16 +49,20 @@ def login_password_creator(name, row):
     else:
         login = trans[0][0] + trans[1][0] + str(row - 3)
     password = str(randint(10000, 99999))
+    password_hash = generate_password_hash(password)
     return login, password
 
 
 def db_update_students():
+    """
+    Функция для обновления таблицы students
+    """
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
     cursor.execute("SELECT student_row FROM students")
     used_rows = cursor.fetchall()
-    students_amount = len(service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:A40').execute()['values'])
+    students_amount = len(service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:A50').execute()['values'])
     jump = False
     for i in range(0, students_amount):
         row = i + 4
@@ -73,6 +84,11 @@ def db_update_students():
 
 
 def info_creator(sheet_name):
+    """
+    На вход название листа
+    На выход список формата [{"Классная работа 1": 40, "Классная работа 2": 20, ...}, {...}, ...]
+    P.S. список учеников(ученик = словарь с результатами по каждой работе на листе
+    """
     connection, cursor = db_connection()
     cursor.execute("SELECT student_id FROM students")
     number_of_students = len(cursor.fetchall())
@@ -98,6 +114,9 @@ def info_creator(sheet_name):
 
 
 def total_info_creator():
+    """
+    Функция для объединения всех листов после info_creator
+    """
     total_student_information = info_creator(sheet_names[0])
     for i in range(1, len(sheet_names)):
         current_sheet_students = info_creator(sheet_names[i])
@@ -107,6 +126,10 @@ def total_info_creator():
 
 
 def borders(sheet_name, service):
+    """
+    На вход название листа и service
+    На выход границы клеток всех работ на листе
+    """
     borders_info = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A2:ZZ2').execute()['values'][0][4:]
     borders_info.append('')
     all_borders = []
@@ -124,6 +147,9 @@ def borders(sheet_name, service):
 
 
 def db_update_works_info():
+    """
+    Функция для перезаписи таблицы works
+    """
     service = service_function()
     connection, cursor = db_connection()
     cursor.execute("TRUNCATE TABLE works RESTART IDENTITY CASCADE;")
@@ -164,9 +190,12 @@ def db_update_works_info():
 
 
 def db_update_total_grades():
+    """
+    Функция для перезаписи таблицы total_grades
+    """
     connection, cursor = db_connection()
     cursor.execute("TRUNCATE TABLE total_grades;")
-    cursor.execute("SELECT student_id FROM students;")
+    cursor.execute("SELECT student_id FROM students WHERE student_id < 999;")
     students = cursor.fetchall()
     results = total_info_creator()
     for student in students:
