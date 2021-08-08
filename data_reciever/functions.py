@@ -14,6 +14,12 @@ from email.mime.base import MIMEBase
 from email import encoders
 from platform import python_version
 
+from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
+
+scheduler = BlockingScheduler()
+
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
              'Движение класс', 'Движение дз', 'Совместная класс', 'Совместная дз',
@@ -237,6 +243,7 @@ def db_update_works_info():
     return 0
 
 
+@scheduler.scheduled_job(IntervalTrigger(minutes=3))
 def db_update_total_grades():
     """
     Функция для перезаписи таблицы total_grades
@@ -256,3 +263,7 @@ def db_update_total_grades():
             current_work_id = work[0]
             current_work_grade = current_student_results[current_work_name]
             cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score) VALUES (%s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade))
+
+
+if __name__ == '__main__':
+    scheduler.start()
