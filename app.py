@@ -5,6 +5,7 @@ from flask_login import LoginManager, UserMixin, login_required, login_user, log
 import psycopg2
 from data_reciever import functions
 from werkzeug.security import check_password_hash, generate_password_hash
+import apscheduler
 
 app = Flask(__name__)
 app.secret_key = "kolya i sandr gei"

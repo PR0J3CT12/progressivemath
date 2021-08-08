@@ -72,7 +72,6 @@ def send_email(file):
     mail.quit()
 
 
-
 def db_connection():
     """
     Функция для подключения к базе данных
@@ -248,6 +247,16 @@ def db_update_works_info():
     return 0
 
 
+def mana_give(student_id):
+    connection, cursor = db_connection()
+    cursor.execute("SELECT mana FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True' ", (student_id, ))
+    record = cursor.fetchall()
+    mana = 0
+    for i in record:
+        mana += i[0]
+    cursor.execute("UPDATE students SET mana_earned = %s WHERE student_id = %s; COMMIT;", (mana, student_id))
+
+
 @scheduler.scheduled_job(IntervalTrigger(minutes=3))
 def db_update_total_grades():
     """
@@ -268,6 +277,21 @@ def db_update_total_grades():
             current_work_id = work[0]
             current_work_grade = current_student_results[current_work_name]
             cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score) VALUES (%s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade))
+            cursor.execute("SELECT * FROM get_current_homework_score(%s, %s)", (current_student_id, current_work_id))
+            tmp_var = cursor.fetchall()[0]
+            if tmp_var[0] is not None and tmp_var[1] is not None:
+                percentage = int(tmp_var[1] / tmp_var[0] * 100)
+                if 0 < percentage <= 25:
+                    mana = 1
+                elif 25 < percentage <= 50:
+                    mana = 2
+                elif 50 < percentage <= 75:
+                    mana = 3
+                elif 75 < percentage <= 100:
+                    mana = 4
+                else:
+                    mana = 0
+                cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s;", (mana, current_student_id, current_work_id))
 
 
 if __name__ == '__main__':
