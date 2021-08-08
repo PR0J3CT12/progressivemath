@@ -6,9 +6,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 if __name__ == '__main__':
     pass
+    #total_info_creator()
     connection, cursor = db_connection()
+    hash_my = generate_password_hash('123')
+    cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
     cursor.close()
     connection.close()
     db_update_students()
+    #send_email('passwords.txt')
     #db_update_works_info()
     #db_update_total_grades()
