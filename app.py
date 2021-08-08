@@ -7,9 +7,9 @@ from data_reciever import functions
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-app.secret_key = "sandr vonyaet kakashkami"
+app.secret_key = "kolya gay"
 app.debug = True
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Nickrotay12@localhost:5432/Progressive_math'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123@localhost:5432/progressive_math'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 login_manager = LoginManager(app)
 db = SQLAlchemy(app)
@@ -34,10 +34,7 @@ def main_page():
 @app.route('/login', methods=['POST', 'GET'])
 def login_page():
     if current_user.is_authenticated:
-        if current_user.status == 0:
-            return redirect(url_for('student_page', pid=current_user.student_id))
-        else:
-            return redirect(url_for('admin'))
+        return redirect(url_for('student_page'))
     login = request.form.get('login')
     password = request.form.get('password')
     if login and password:
@@ -82,7 +79,7 @@ def student_page(pid):
         cursor.close()
         connection.close()
         '''
-        return render_template("student.html")#, data=record)
+        return render_template("student.html")
     else:
         return redirect(url_for('student_page', pid=current_user.student_id))
 

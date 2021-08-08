@@ -31,7 +31,7 @@ def db_connection():
     Возвращает connection и cursor
     """
     try:
-        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432", dbname="Progressive_math")
+        connection = psycopg2.connect(user="postgres", password="123", host="127.0.0.1", port="5432", dbname="progressive_math")
         cursor = connection.cursor()
         return connection, cursor
     except:
