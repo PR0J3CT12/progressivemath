@@ -128,6 +128,11 @@ def db_update_students():
         with open('passwords.txt', 'a+') as f:
             f.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
         cursor.execute("INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT", (student_name, info[1], info[3], row))
+    cursor.execute("SELECT * FROM students WHERE student_id=999;")
+    admin_tmp = cursor.fetchall()
+    if len(admin_tmp) == 0:
+        hash_my = generate_password_hash('123')
+        cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
     if connection:
         cursor.close()
         connection.close()
