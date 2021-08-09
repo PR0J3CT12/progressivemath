@@ -1,5 +1,5 @@
 import React, {useState} from "react";
-import { Avatar, Button, Paper, Grid, Typography, Container, TextField } from "@material-ui/core";
+import { Avatar, Button, Paper, Grid, Container } from "@material-ui/core";
 import { useDispatch } from 'react-redux';
 import { useHistory } from 'react-router-dom';
 
@@ -35,10 +35,6 @@ const Auth = () => {
     setShowPassword(!showPassword);
   }
 
-  const switchMode = () => {
-    setShowPassword(false);
-  }
-
   return (
     <Container className={classes.root} component="main" maxWidth="xs">
       <Paper className={classes.paper} elevation={3}>
@@ -47,7 +43,7 @@ const Auth = () => {
         </Avatar>
         <form className={classes.form} onSubmit={handleSubmit}>
           <Grid container spacing={2}>
-            <Input name="login" label="Login" handleChange={handleChange} type="login" />
+            <Input name="login" label="Логин" handleChange={handleChange} type="login" />
             <Input
               name="password"
               label="Пароль"

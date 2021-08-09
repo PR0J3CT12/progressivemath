@@ -9,6 +9,7 @@ const authReducer = (state = { authData: null }, action) => {
 				localStorage.clear()
 			}, 60 * 60 * 1000);
 
+			console.log('gay')
 			return { ...state, authData: action?.data };
 		default:
 			return state;
