@@ -6,14 +6,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 if __name__ == '__main__':
     pass
-    #connection, cursor = db_connection()
-    #cursor.execute("SELECT work_id, work_name FROM works;")
-    #x = cursor.fetchall()
-    #print(x)
     #db_update_students()
     #db_update_works_info()
-    db_update_total_grades()
-    #results = total_info_creator()
-    #for i in range(len(results)):
-    #    print(i)
-    #    print(results[i])
+    #db_update_total_grades()
