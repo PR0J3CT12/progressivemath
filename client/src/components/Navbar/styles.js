@@ -1,5 +1,5 @@
 import { makeStyles } from '@material-ui/core/styles';
-import { fade, Typography, withStyles } from "@material-ui/core";
+import { alpha } from "@material-ui/core";
 
 export default makeStyles((theme) => ({
   appBar: {
@@ -32,9 +32,9 @@ export default makeStyles((theme) => ({
   search: {
     position: 'relative',
     borderRadius: theme.shape.borderRadius,
-    backgroundColor: fade(theme.palette.common.white, 0.15),
+    backgroundColor: alpha(theme.palette.common.white, 0.15),
     '&:hover': {
-      backgroundColor: fade(theme.palette.common.white, 0.25),
+      backgroundColor: alpha(theme.palette.common.white, 0.25),
     },
     margin: "0 5px 0 15px",
     width: '100%',

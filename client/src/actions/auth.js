@@ -8,7 +8,7 @@ export const signin = (formData, history) => async (dispatch) => {
 
 		dispatch({ type: AUTH, data });
 
-		history.push('/');
+		history.push(`/student/${data.user_id}`);
 	} catch (err) {
 		console.log(err);
 	}

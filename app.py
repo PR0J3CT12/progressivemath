@@ -1,15 +1,17 @@
-from flask import Flask, render_template, url_for, request, redirect, flash
+from flask import Flask, render_template, url_for, request, redirect, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, fresh_login_required, \
     current_user
+from flask_cors import CORS, cross_origin
 import psycopg2
 from data_reciever import functions
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-app.secret_key = "sandr vonyaet kakashkami"
+cors = CORS(app)
+app.secret_key = "kolya i sandr gei"
 app.debug = True
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Nickrotay12@localhost:5432/Progressive_math'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123@localhost:5432/progressive_math'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 login_manager = LoginManager(app)
 db = SQLAlchemy(app)
@@ -31,45 +33,36 @@ def main_page():
     return redirect('/login')
 
 
-@app.route('/auth', methods=['POST', 'GET'])
-def login_page():
-    print("gay")
-    if current_user.is_authenticated:
-        if current_user.status == 0:
-            return redirect(url_for('student_page', pid=current_user.student_id))
-        else:
-            return redirect(url_for('admin'))
-    login = request.form.get('login')
-    password = request.form.get('password')
-    if login and password:
-        user = User.query.filter_by(student_login=login).first()
-        if user and (user.student_password == password or check_password_hash(user.student_password, password)):
-            login_user(user)
-            page_id = user.student_id
-            if page_id == 999:
-                return redirect(url_for('admin'))
-            else:
-                return redirect(url_for('student_page', pid=page_id))
-        else:
-            flash('Login or password is not correct')
-    return render_template('login_page.html')
-
 # @app.route('/auth', methods=['POST'])
 # def login_page():
 #     if current_user.is_authenticated:
 #         return redirect(url_for('student_page'))
 #     login = request.form.get('login')
-#     print(login)
 #     password = request.form.get('password')
 #     if login and password:
 #         user = User.query.filter_by(student_login=login).first()
 #         if user and (user.student_password == password or check_password_hash(user.student_password, password)):
 #             login_user(user)
 #             page_id = user.student_id
-#             return 200
+#             if page_id == 999:
+#                 return redirect(url_for('admin'))
+#             else:
+#                 return redirect(url_for('student_page', pid=page_id))
 #         else:
 #             flash('Login or password is not correct')
 #     return render_template('login_page.html')
+
+@app.route('/auth', methods=['POST'])
+def login_page():
+    json_payload = request.get_json()
+    user_entry = User.query.filter_by(student_login=json_payload['login']).first()
+    if user_entry:
+        if check_password_hash(user_entry.student_password, json_payload['password']):
+            login_user(user_entry)
+            return {"isLoggedIn": current_user.is_authenticated,
+                    "user_id": user_entry.student_id}, 200
+
+    return jsonify(authorization=False), 403
 
 
 @app.route('/logout', methods=['POST', 'GET'])
