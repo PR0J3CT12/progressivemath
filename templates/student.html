@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Имя студента
+    {{ current_user.student_name }} | Личный кабинет
 {% endblock %}
 
 {% block body %}
     Статистика {{ current_user.student_name }}
-    Баллы: {{ list_to_send }}
     <form method="post">
         <p>
             <input type="button" value="Выйти" onClick='location.href="/logout"'>

@@ -7,7 +7,7 @@ from data_reciever import functions
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-app.secret_key = "sandr vonyaet kakashkami"
+app.secret_key = "kolya i sandr gei"
 app.debug = True
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Nickrotay12@localhost:5432/Progressive_math'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -31,13 +31,11 @@ def main_page():
     return redirect('/login')
 
 
-@app.route('/login', methods=['POST', 'GET'])
+@app.route('/auth', methods=['POST', 'GET'])
 def login_page():
+    print("gay")
     if current_user.is_authenticated:
-        if current_user.status == 0:
-            return redirect(url_for('student_page', pid=current_user.student_id))
-        else:
-            return redirect(url_for('admin'))
+        return redirect(url_for('student_page'))
     login = request.form.get('login')
     password = request.form.get('password')
     if login and password:
@@ -52,6 +50,23 @@ def login_page():
         else:
             flash('Login or password is not correct')
     return render_template('login_page.html')
+
+# @app.route('/auth', methods=['POST'])
+# def login_page():
+#     if current_user.is_authenticated:
+#         return redirect(url_for('student_page'))
+#     login = request.form.get('login')
+#     print(login)
+#     password = request.form.get('password')
+#     if login and password:
+#         user = User.query.filter_by(student_login=login).first()
+#         if user and (user.student_password == password or check_password_hash(user.student_password, password)):
+#             login_user(user)
+#             page_id = user.student_id
+#             return 200
+#         else:
+#             flash('Login or password is not correct')
+#     return render_template('login_page.html')
 
 
 @app.route('/logout', methods=['POST', 'GET'])
@@ -82,7 +97,7 @@ def student_page(pid):
         cursor.close()
         connection.close()
         '''
-        return render_template("student.html")#, data=record)
+        return render_template("student.html")
     else:
         return redirect(url_for('student_page', pid=current_user.student_id))
 

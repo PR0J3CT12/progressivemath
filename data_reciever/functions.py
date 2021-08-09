@@ -4,9 +4,21 @@ from random import randint
 from transliterate import translit
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
-import os.path
+import os.path, os
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+from platform import python_version
+
+from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
+
+scheduler = BlockingScheduler()
 
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
@@ -25,13 +37,49 @@ def service_function():
     return service
 
 
+def send_email(file):
+    """
+    Send an email
+    """
+    server = 'smtp.gmail.com'
+    user = '7pr0j3ct12@gmail.com'
+    password = 'Nickrotay12'
+    sender = user
+    to_who = 'nik.rotay@gmail.com'
+    subject = 'Пароли'
+    text = 'Текст'
+    file = 'passwords.txt'
+    basename = os.path.basename(file)
+    filesize = os.path.getsize(file)
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = 'Python script <' + sender + '>'
+    msg['To'] = ', '.join(to_who)
+    msg['Reply-To'] = sender
+    msg['Return-Path'] = sender
+    msg['X-Mailer'] = 'Python/' + (python_version())
+    part_text = MIMEText(text, 'plain')
+    part_file = MIMEBase('application', 'octet-stream; name="{}"'.format(basename))
+    part_file.set_payload(open(file, "rb").read())
+    part_file.add_header('Content-Description', basename)
+    part_file.add_header('Content-Disposition', 'attachment; filename="{}"; size={}'.format(basename, filesize))
+    encoders.encode_base64(part_file)
+    msg.attach(part_text)
+    msg.attach(part_file)
+    mail = smtplib.SMTP_SSL(server)
+    mail.login(user, password)
+    mail.sendmail(sender, to_who, msg.as_string())
+    mail.quit()
+
+
+
 def db_connection():
     """
     Функция для подключения к базе данных
     Возвращает connection и cursor
     """
     try:
-        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432", dbname="Progressive_math")
+        connection = psycopg2.connect(user="postgres", password="123", host="127.0.0.1", port="5432", dbname="progressive_math")
         cursor = connection.cursor()
         return connection, cursor
     except:
@@ -50,13 +98,15 @@ def login_password_creator(name, row):
         login = trans[0][0] + trans[1][0] + str(row - 3)
     password = str(randint(10000, 99999))
     password_hash = generate_password_hash(password)
-    return login, password
+    return name, login, password, password_hash
 
 
 def db_update_students():
     """
     Функция для обновления таблицы students
     """
+    if os.path.isfile('passwords.txt'):
+        os.remove('passwords.txt')
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
@@ -75,10 +125,19 @@ def db_update_students():
             continue
         student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
-        cursor.execute("INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT", (student_name, info[0], info[1], row))
+        with open('passwords.txt', 'a+') as f:
+            f.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
+        cursor.execute("INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT", (student_name, info[1], info[3], row))
+    cursor.execute("SELECT * FROM students WHERE student_id=999;")
+    admin_tmp = cursor.fetchall()
+    if len(admin_tmp) == 0:
+        hash_my = generate_password_hash('123')
+        cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
     if connection:
         cursor.close()
         connection.close()
+        send_email('passwords.txt')
+
     else:
         return 'Не удалось подключиться к базе данных'
 
@@ -189,6 +248,7 @@ def db_update_works_info():
     return 0
 
 
+@scheduler.scheduled_job(IntervalTrigger(minutes=3))
 def db_update_total_grades():
     """
     Функция для перезаписи таблицы total_grades
@@ -208,3 +268,7 @@ def db_update_total_grades():
             current_work_id = work[0]
             current_work_grade = current_student_results[current_work_name]
             cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score) VALUES (%s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade))
+
+
+if __name__ == '__main__':
+    scheduler.start()
