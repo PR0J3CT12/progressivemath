@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import Navbar from './components/Navbar/Navbar';
-import Auth from './components/Auth/Auth';
-import Footer from './components/Footer/Footer';
+import Auth from './components/Auth/Auth.js';
 
 function App() {
   return (
@@ -12,7 +11,6 @@ function App() {
           <Auth />
         </Route>
         <Route exact path="/">
-          <Footer />
         </Route>
       </Switch>
     </Router>
