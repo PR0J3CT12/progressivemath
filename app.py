@@ -59,7 +59,8 @@ def login_page():
     if user_entry:
         if check_password_hash(user_entry.student_password, json_payload['password']):
             login_user(user_entry)
-            return jsonify(isLoggedIn=current_user.is_authenticated), 200
+            return {"isLoggedIn": current_user.is_authenticated,
+                    "user_id": user_entry.student_id}, 200
 
     return jsonify(authorization=False), 403
 
