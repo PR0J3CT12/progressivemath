@@ -5,19 +5,6 @@
 {% endblock %}
 
 {% block body %}
-    {% if message %}
-        <p>{{ message }}</p>
-    {% endif %}
-
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <ul class=flashes>
-            {% for message in messages %}
-                <li>{{ message }}</li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
 
     <form method="post">
         <p>
@@ -26,6 +13,18 @@
 	    <p>
 	        <input type="password" id="student_password" name="password" placeholder="Пароль">
 	    </p>
+        {% if message %}
+            <p>{{ message }}</p>
+        {% endif %}
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <p class=flashes>
+            {% for message in messages %}
+                <p id="login_message" style="color: red; font-size: 12px; margin-left: 8px;">{{ message }}</p>
+            {% endfor %}
+            </p>
+        {% endif %}
+        {% endwith %}
 	    <p>
 	        <input type="submit" name="login" value="Войти">
 	    </p>
