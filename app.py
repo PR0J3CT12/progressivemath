@@ -31,8 +31,9 @@ def main_page():
     return redirect('/login')
 
 
-@app.route('/login', methods=['POST', 'GET'])
+@app.route('/auth', methods=['POST', 'GET'])
 def login_page():
+    print("gay")
     if current_user.is_authenticated:
         if current_user.status == 0:
             return redirect(url_for('student_page', pid=current_user.student_id))
@@ -52,6 +53,23 @@ def login_page():
         else:
             flash('Login or password is not correct')
     return render_template('login_page.html')
+
+# @app.route('/auth', methods=['POST'])
+# def login_page():
+#     if current_user.is_authenticated:
+#         return redirect(url_for('student_page'))
+#     login = request.form.get('login')
+#     print(login)
+#     password = request.form.get('password')
+#     if login and password:
+#         user = User.query.filter_by(student_login=login).first()
+#         if user and (user.student_password == password or check_password_hash(user.student_password, password)):
+#             login_user(user)
+#             page_id = user.student_id
+#             return 200
+#         else:
+#             flash('Login or password is not correct')
+#     return render_template('login_page.html')
 
 
 @app.route('/logout', methods=['POST', 'GET'])
