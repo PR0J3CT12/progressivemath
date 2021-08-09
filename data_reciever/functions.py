@@ -17,15 +17,14 @@ from platform import python_version
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-
 scheduler = BlockingScheduler()
 
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
-             'Движение класс', 'Движение дз', 'Совместная класс', 'Совместная дз',
-             'Обратный ход класс', 'Обратный ход дз', 'Головы и ноги класс',
-             'Головы и ноги дз', 'Экзамен письм класс', 'экзамен домашний(баллы 2007)',
-             'Экзамен домашний письм', 'Экзамен устный класс', 'Экзамен устный дз']
+               'Движение класс', 'Движение дз', 'Совместная класс', 'Совместная дз',
+               'Обратный ход класс', 'Обратный ход дз', 'Головы и ноги класс',
+               'Головы и ноги дз', 'Экзамен письм класс', 'экзамен домашний(баллы 2007)',
+               'Экзамен домашний письм', 'Экзамен устный класс', 'Экзамен устный дз']
 
 
 def service_function():
@@ -47,13 +46,13 @@ def send_email(file):
     sender = user
     to_who = 'nik.rotay@gmail.com'
     subject = 'Пароли'
-    text = 'Текст'
+    text = 'Логины и пароли добавленных пользователей'
     file = 'passwords.txt'
     basename = os.path.basename(file)
     filesize = os.path.getsize(file)
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
-    msg['From'] = 'Python script <' + sender + '>'
+    msg['From'] = 'Курсы прогрессивной математики <' + sender + '>'
     msg['To'] = ', '.join(to_who)
     msg['Reply-To'] = sender
     msg['Return-Path'] = sender
@@ -78,7 +77,8 @@ def db_connection():
     Возвращает connection и cursor
     """
     try:
-        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432", dbname="Progressive_math")
+        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432",
+                                      dbname="Progressive_math")
         cursor = connection.cursor()
         return connection, cursor
     except:
@@ -122,11 +122,14 @@ def db_update_students():
         if jump:
             jump = False
             continue
-        student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
+        student_name = \
+            service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
         with open('passwords.txt', 'a+') as f:
             f.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
-        cursor.execute("INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT", (student_name, info[1], info[3], row))
+        cursor.execute(
+            "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT",
+            (student_name, info[1], info[3], row))
     cursor.execute("SELECT * FROM students WHERE student_id=999;")
     admin_tmp = cursor.fetchall()
     if len(admin_tmp) == 0:
@@ -135,7 +138,11 @@ def db_update_students():
     if connection:
         cursor.close()
         connection.close()
-        send_email('passwords.txt')
+        if os.path.isfile('passwords.txt'):
+            with open('passwords.txt', 'r') as f:
+                x = f.readlines()
+                if len(x) != 0:
+                    send_email('passwords.txt')
 
     else:
         return 'Не удалось подключиться к базе данных'
@@ -154,19 +161,39 @@ def info_creator(sheet_name):
     works_names = cursor.fetchall()
     service = service_function()
     current_sheet_students = []
-    data = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:ZZ{number_of_students+3}').execute()['values']
-    all_borders = borders(sheet_name, service)
+    data = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:ZZ{number_of_students + 3}').execute()['values']
+    all_borders, is_homework_list = borders(sheet_name)
     for i in range(len(data)):
         data[i] = data[i][4:]
         for j in range(len(data[i])):
-            if data[i][j] == '':
-                data[i][j] = 0
+            if data[i][j] == '' or '-':
+                pass
             else:
                 data[i][j] = int(data[i][j])
+    is_last_classwork = False
+    is_last_homework = False
     for student in data:
+        is_last_classwork = False
+        is_last_homework = False
+        is_last_work = False
         current_student_dict = defaultdict(list)
         for i in range(len(all_borders)):
-            current_student_dict[works_names[i][0]] = sum(student[all_borders[i][0]:all_borders[i][1]])
+            list_of_grades = student[all_borders[i][0]:all_borders[i][1] + 1]
+            cur_string = ''
+            for el in list_of_grades:
+                cur_string += str(el)
+            if len(cur_string) != 0:
+                if is_homework_list is True:
+                    is_last_homework = works_names[i][0]
+                    is_last_work = True
+                else:
+                    is_last_classwork = works_names[i][0]
+                    is_last_work = True
+            current_student_dict[works_names[i][0]] = list_of_grades
+        if is_last_homework:
+            current_student_dict['Последняя домашняя работа'] = is_last_homework
+        if is_last_classwork:
+            current_student_dict['Последняя классная работа'] = is_last_classwork
         current_sheet_students.append(current_student_dict)
     return current_sheet_students
 
@@ -183,25 +210,30 @@ def total_info_creator():
     return total_student_information
 
 
-def borders(sheet_name, service):
+def borders(sheet_name):
     """
     На вход название листа и service
     На выход границы клеток всех работ на листе
     """
+    service = service_function()
     borders_info = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A2:ZZ2').execute()['values'][0][4:]
     borders_info.append('')
     all_borders = []
     left_index = 0
+    is_homework_list = False
     for i in range(len(borders_info)):
         if borders_info[i] == '∑':
             right_index = i - 1
             current_borders = [left_index, right_index]
+            if borders_info[i] == '∑' and borders_info[i + 1] == '':
+                if i + 1 < len(borders_info) - 1:
+                    is_homework_list = True
             if borders_info[i + 1] == '':
                 left_index = i + 2
             else:
                 left_index = i + 1
             all_borders.append(current_borders)
-    return all_borders
+    return all_borders, is_homework_list
 
 
 def db_update_works_info():
@@ -225,31 +257,26 @@ def db_update_works_info():
             if for_names[k] != 'Мана':
                 names_list.append(for_names[k])
         score.append('')
+        score = score[4:]
         works_info = []
-        amount = 0
-        num = 0
-        work_counter = 0
-        for c in range(len(score)):
-            if score[c] != '':
-                amount += int(score[c])
-                num += 1
-                if int(score[c]) == 0:
-                    num -= 1
-            if score[c] == '':
-                if amount != 0:
-                    work_name = names_list[work_counter]
-                    works_info.append([work_name, sheet_name, amount, num, is_homework])
-                    work_counter += 1
-                amount = 0
-                num = 0
+        all_borders = borders(sheet_name)[0]
+        for j in range(len(all_borders)):
+            current_work = score[all_borders[j][0]:all_borders[j][1]+1]
+            to_string = current_work[0]
+            for h in range(1, len(current_work)):
+                to_string += ' ' + current_work[h]
+            work_name = names_list[j]
+            works_info.append([work_name, sheet_name, to_string, is_homework])
         for j in range(len(works_info)):
-            cursor.execute("INSERT INTO works(work_name, sheet_name, max_score, exercises, is_homework) VALUES (%s, %s, %s, %s, %s); COMMIT", (works_info[j][0], works_info[j][1], works_info[j][2], works_info[j][3], works_info[j][4]))
-    return 0
+            cursor.execute(
+                "INSERT INTO works(work_name, sheet_name, grades_string, is_homework) VALUES (%s, %s, %s, %s); COMMIT", (works_info[j][0], works_info[j][1], works_info[j][2], works_info[j][3]))
 
 
 def mana_give(student_id):
     connection, cursor = db_connection()
-    cursor.execute("SELECT mana FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True' ", (student_id, ))
+    cursor.execute(
+        "SELECT mana FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True' ",
+        (student_id,))
     record = cursor.fetchall()
     mana = 0
     for i in record:
@@ -275,8 +302,37 @@ def db_update_total_grades():
         for work in record:
             current_work_name = work[1]
             current_work_id = work[0]
-            current_work_grade = current_student_results[current_work_name]
-            cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score) VALUES (%s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade))
+            current_last_homework = current_student_results['Последняя домашняя работа']
+            cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_homework,))
+            current_last_homework_id = cursor.fetchall()[0][0]
+            cursor.execute("UPDATE students SET last_homework_id = %s WHERE student_id = %s; COMMIT;", (current_last_homework_id, current_student_id))
+            current_last_classwork = current_student_results['Последняя классная работа']
+            cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_classwork,))
+            current_last_classwork_id = cursor.fetchall()[0][0]
+            cursor.execute("UPDATE students SET last_classwork_id = %s WHERE student_id = %s; COMMIT;", (current_last_classwork_id, current_student_id))
+            current_work_grades_list = current_student_results[current_work_name]
+            cursor.execute("SELECT grades_string FROM works;")
+            grades_strings = cursor.fetchall()
+            current_work_grade_string = grades_strings[current_work_id - 1][0].split(' ')
+            current_work_grade = 0
+            current_exercises = 0
+            current_max_score = 0
+            for j in current_work_grade_string:
+                if int(j) == 0:
+                    current_exercises += 0
+                    current_max_score += 0
+                else:
+                    current_exercises += 1
+                    current_max_score += int(j)
+            for i in range(len(current_work_grades_list)):
+                if current_work_grades_list[i] == '':
+                    current_work_grade += 0
+                elif current_work_grades_list[i] == '-':
+                    current_max_score -= int(current_work_grade_string[i])
+                    current_exercises -= 1
+                else:
+                    current_work_grade += int(current_work_grades_list[i])
+            cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score, max_score, exercises) VALUES (%s, %s, %s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade, current_max_score, current_exercises))
             cursor.execute("SELECT * FROM get_current_homework_score(%s, %s)", (current_student_id, current_work_id))
             tmp_var = cursor.fetchall()[0]
             if tmp_var[0] is not None and tmp_var[1] is not None:
@@ -291,7 +347,7 @@ def db_update_total_grades():
                     mana = 4
                 else:
                     mana = 0
-                cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s;", (mana, current_student_id, current_work_id))
+                cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s; COMMIT;", (mana, current_student_id, current_work_id))
 
 
 if __name__ == '__main__':
