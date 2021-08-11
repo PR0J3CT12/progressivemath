@@ -5,12 +5,11 @@
 {% endblock %}
 
 {% block body %}
-
     <form method="post">
         <p>
 	        <input type="text" id="student_login" name="login" placeholder="Логин">
 	    </p>
-	    <p>
+	   <p>
 	        <input type="password" id="student_password" name="password" placeholder="Пароль">
 	    </p>
         {% if message %}
@@ -26,7 +25,7 @@
         {% endif %}
         {% endwith %}
 	    <p>
-	        <input type="submit" name="login" value="Войти">
+	        <input type="submit" class="blubtn" name="login" value="Войти">
 	    </p>
     </form>
 

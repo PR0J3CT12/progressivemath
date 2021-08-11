@@ -11,7 +11,7 @@ app = Flask(__name__)
 cors = CORS(app)
 app.secret_key = "kolya i sandr gei"
 app.debug = True
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123@localhost:5432/progressive_math'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Nickrotay12@localhost:5432/Progressive_math'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 login_manager = LoginManager(app)
 db = SQLAlchemy(app)
@@ -33,25 +33,30 @@ def main_page():
     return redirect('/login')
 
 
-# @app.route('/auth', methods=['POST'])
-# def login_page():
-#     if current_user.is_authenticated:
-#         return redirect(url_for('student_page'))
-#     login = request.form.get('login')
-#     password = request.form.get('password')
-#     if login and password:
-#         user = User.query.filter_by(student_login=login).first()
-#         if user and (user.student_password == password or check_password_hash(user.student_password, password)):
-#             login_user(user)
-#             page_id = user.student_id
-#             if page_id == 999:
-#                 return redirect(url_for('admin'))
-#             else:
-#                 return redirect(url_for('student_page', pid=page_id))
-#         else:
-#             flash('Login or password is not correct')
-#     return render_template('login_page.html')
+@app.route('/login', methods=['POST', 'GET'])
+def login_page():
+    if current_user.is_authenticated:
+        if current_user.student_id == 999:
+            return redirect(url_for('admin'))
+        else:
+            return redirect(url_for('student_page', pid=current_user.student_id))
+    login = request.form.get('login')
+    password = request.form.get('password')
+    if login and password:
+        user = User.query.filter_by(student_login=login).first()
+        if user and (user.student_password == password or check_password_hash(user.student_password, password)):
+            login_user(user)
+            page_id = user.student_id
+            if page_id == 999:
+                return redirect(url_for('admin'))
+            else:
+                return redirect(url_for('student_page', pid=page_id))
+        else:
+            flash('Login or password is not correct')
+    return render_template('login_page.html')
 
+
+'''
 @app.route('/auth', methods=['POST'])
 def login_page():
     json_payload = request.get_json()
@@ -63,13 +68,16 @@ def login_page():
                     "user_id": user_entry.student_id}, 200
 
     return jsonify(authorization=False), 403
+'''
 
 
 @app.route('/logout', methods=['POST', 'GET'])
-@login_required
 def logout_page():
-    logout_user()
-    return redirect(url_for('login_page'))
+    if current_user.is_authenticated:
+        logout_user()
+        return redirect(url_for('login_page'))
+    else:
+        return redirect(url_for('login_page'))
 
 
 @app.after_request
@@ -86,14 +94,23 @@ def student_page(pid):
     if pid == 999:
         return redirect(url_for('admin'))
     if pid == current_user.student_id:
-        '''
         connection, cursor = functions.db_connection()
-        cursor.execute('SELECT score FROM total_grades WHERE fk_student_id = %s', (pid,))
-        record = cursor.fetchall()
+        cursor.execute('SELECT * FROM get_current_homework_progress(%s)', (current_user.student_id,))
+        record = cursor.fetchall()[0]
+        current_homework_progress = round(record[0] / record[1] * 100)
+        cursor.execute('SELECT * FROM get_current_classwork_progress(%s)', (current_user.student_id,))
+        record = cursor.fetchall()[0]
+        current_classwork_progress = round(record[0] / record[1] * 100)
+        cursor.execute('SELECT * FROM get_last_homework_score(%s)', (current_user.student_id,))
+        record = cursor.fetchall()[0]
+        last_homework_progress = round(record[0] / record[1] * 100)
+        cursor.execute('SELECT * FROM get_last_classwork_score(%s)', (current_user.student_id,))
+        record = cursor.fetchall()[0]
+        last_classwork_progress = round(record[0] / record[1] * 100)
+        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress]
         cursor.close()
         connection.close()
-        '''
-        return render_template("student.html")
+        return render_template("student.html", data=data)
     else:
         return redirect(url_for('student_page', pid=current_user.student_id))
 

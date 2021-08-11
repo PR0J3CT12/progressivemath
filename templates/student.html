@@ -5,10 +5,28 @@
 {% endblock %}
 
 {% block body %}
-    Статистика {{ current_user.student_name }}
-    <form method="post">
-        <p>
-            <input type="button" value="Выйти" onClick='location.href="/logout"'>
-	    </p>
-    </form>
+    <div id="wrap">
+        <h1>{{ current_user.student_name }}</h1>
+        <div>
+            <p>Текущий прогресс домашних работ</p>
+            <progress max="100" value={{ data[0] }}></progress>
+        </div>
+        <div>
+            <p>Текущий прогресс классных работ</p>
+            <progress max="100" value={{ data[1] }}></progress>
+        </div>
+        <div>
+            <p>Результат последней домашней работы</p>
+            <progress max="100" value={{ data[2] }}></progress>
+        </div>
+        <div>
+            <p>Результат последней классной работы</p>
+            <progress max="100" value={{ data[3] }}></progress>
+        </div>
+        <form method="post">
+            <div>
+                <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+            </div>
+        </form>
+    </div>
 {% endblock %}

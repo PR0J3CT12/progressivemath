@@ -77,11 +77,11 @@ def db_connection():
     Возвращает connection и cursor
     """
     try:
-        connection = psycopg2.connect(user="postgres", password="123", host="127.0.0.1", port="5432", dbname="progressive_math")
+        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432", dbname="Progressive_math")
         cursor = connection.cursor()
         return connection, cursor
     except:
-        return 0, 0
+        raise Exception('Cant connect to db')
 
 
 def login_password_creator(name, row):
@@ -267,15 +267,12 @@ def db_update_works_info():
             work_name = names_list[j]
             works_info.append([work_name, sheet_name, to_string, is_homework])
         for j in range(len(works_info)):
-            cursor.execute(
-                "INSERT INTO works(work_name, sheet_name, grades_string, is_homework) VALUES (%s, %s, %s, %s); COMMIT", (works_info[j][0], works_info[j][1], works_info[j][2], works_info[j][3]))
+            cursor.execute("INSERT INTO works(work_name, sheet_name, grades_string, is_homework) VALUES (%s, %s, %s, %s); COMMIT", (works_info[j][0], works_info[j][1], works_info[j][2], works_info[j][3]))
 
 
 def mana_give(student_id):
     connection, cursor = db_connection()
-    cursor.execute(
-        "SELECT mana FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True' ",
-        (student_id,))
+    cursor.execute("SELECT mana FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True' ", (student_id,))
     record = cursor.fetchall()
     mana = 0
     for i in record:
