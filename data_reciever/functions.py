@@ -272,11 +272,8 @@ def db_update_works_info():
 
 def mana_give(student_id):
     connection, cursor = db_connection()
-    cursor.execute("SELECT mana FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True' ", (student_id,))
-    record = cursor.fetchall()
-    mana = 0
-    for i in record:
-        mana += i[0]
+    cursor.execute("SELECT SUM(mana) FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True';", (student_id,))
+    mana = cursor.fetchall()[0][0]
     cursor.execute("UPDATE students SET mana_earned = %s WHERE student_id = %s; COMMIT;", (mana, student_id))
 
 

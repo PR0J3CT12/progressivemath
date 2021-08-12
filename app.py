@@ -119,9 +119,25 @@ def student_page(pid):
 @login_required
 def admin():
     if current_user.student_id == 999:
-        return render_template('admin_page.html')
+        connection, cursor = functions.db_connection()
+        cursor.execute('SELECT * FROM waiting_for_mana()')
+        waiters_for_mana = cursor.fetchall()
+        return render_template('admin_page.html', data=waiters_for_mana)
     else:
         return redirect(url_for('student_page', pid=current_user.student_id))
+
+
+@app.route('/my-link/<int:pid>')
+@login_required
+def my_link(pid):
+    if current_user.is_authenticated:
+        if current_user.student_id == 999:
+            functions.mana_give(pid)
+            return redirect('/admin')
+        else:
+            return redirect('/login')
+    else:
+        return redirect('/login')
 
 
 @login_manager.user_loader
