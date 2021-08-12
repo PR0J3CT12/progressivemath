@@ -8,20 +8,26 @@
     {% for student in data %}
         <div>
             <p>{{ student[1] }}</p><p>{{ student[3] - student[2] }} маны</p>
-            <button type="button" id="{{ student[0] }}" onclick="getdetails(this)">Выдать ману</button>
+            <button type="button" id="{{ student[0] }}" onclick="get_id(this)">Выдать ману</button>
             <script>
-                function getdetails(obj) {
-                    window.location.replace(`/my-link/${obj.id}`);
+                function get_id(obj) {
+                    window.location.replace(`/mana_give/${obj.id}`);
                     }
             </script>
         </div>
     {% endfor %}
+    <div>
+            <script>
+                function get_name(obj) {
+                    window.location.replace(`/db_operation/${obj.name}`);
+                    }
+            </script>
+            <button type="button" name="update_grades" onclick="get_name(this)">Обновить оценки</button>
+            <button type="button" name="add_students" onclick="get_name(this)">Добавить учеников</button>
+            <button type="button" name="restart_students" onclick="get_name(this)">Обновить учеников</button>
+            <button type="button" name="update_works" onclick="get_name(this)">Обновить работы</button>
+    </div>
     <form method="post">
-        <div>
-            <button type="button" onclick="">Обновить оценки</button>
-            <button type="button" onclick="">Обновить учеников</button>
-            <button type="button" onclick="">Обновить работы</button>
-	    </div>
         <div>
             <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
 	    </div>

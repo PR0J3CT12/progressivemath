@@ -127,12 +127,45 @@ def admin():
         return redirect(url_for('student_page', pid=current_user.student_id))
 
 
-@app.route('/my-link/<int:pid>')
+@app.route('/mana_give/<int:pid>')
 @login_required
-def my_link(pid):
+def mana_give(pid):
     if current_user.is_authenticated:
         if current_user.student_id == 999:
             functions.mana_give(pid)
+            return redirect('/admin')
+        else:
+            return redirect('/login')
+    else:
+        return redirect('/login')
+
+
+@app.route('/db_operation/<p_name>')
+@login_required
+def db_operation(p_name):
+    if current_user.is_authenticated:
+        if current_user.student_id == 999:
+            if p_name == 'update_grades':
+                print(p_name)
+                try:
+                    functions.db_update_total_grades()
+                except:
+                    print('Не вышло')
+            elif p_name == 'add_students':
+                print(p_name)
+                functions.db_update_students()
+            elif p_name == 'restart_students':
+                print(p_name)
+                connection, cursor = functions.db_connection()
+                cursor.execute('TRUNCATE TABLE students RESTART IDENTITY CASCADE; COMMIT;')
+                functions.db_update_students()
+                connection.close()
+                cursor.close()
+            elif p_name == 'update_works':
+                print(p_name)
+                functions.db_update_works_info()
+            else:
+                print('else')
             return redirect('/admin')
         else:
             return redirect('/login')
