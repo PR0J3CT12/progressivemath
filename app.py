@@ -28,30 +28,6 @@ class User(db.Model, UserMixin):
         return self.student_id
 
 
-@app.route('/', methods=['POST', 'GET'])
-def main_page():
-    return redirect('/login')
-
-
-# @app.route('/auth', methods=['POST'])
-# def login_page():
-#     if current_user.is_authenticated:
-#         return redirect(url_for('student_page'))
-#     login = request.form.get('login')
-#     password = request.form.get('password')
-#     if login and password:
-#         user = User.query.filter_by(student_login=login).first()
-#         if user and (user.student_password == password or check_password_hash(user.student_password, password)):
-#             login_user(user)
-#             page_id = user.student_id
-#             if page_id == 999:
-#                 return redirect(url_for('admin'))
-#             else:
-#                 return redirect(url_for('student_page', pid=page_id))
-#         else:
-#             flash('Login or password is not correct')
-#     return render_template('login_page.html')
-
 @app.route('/auth', methods=['POST'])
 def login_page():
     json_payload = request.get_json()

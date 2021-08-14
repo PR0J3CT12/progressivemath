@@ -8,7 +8,14 @@ export const signin = (formData, history) => async (dispatch) => {
 
 		dispatch({ type: AUTH, data });
 
-		history.push(`/student/${data.user_id}`);
+		let studentId = data.user_id;
+
+		if (studentId === 999) {
+			history.push('/admin');
+		} else {
+			history.push(`/student/${data.user_id}`);
+		}
+
 	} catch (err) {
 		console.log(err);
 	}
