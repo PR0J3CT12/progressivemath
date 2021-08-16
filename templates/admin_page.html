@@ -4,9 +4,10 @@
 {% endblock %}
 
 {% block body %}
+    <div id="wrap">
     <h1>Админская панель</h1>
     {% for student in data %}
-        <div>
+        <div id="mana">
             <p>{{ student[1] }}</p><p>{{ student[3] - student[2] }} маны</p>
             <button type="button" id="{{ student[0] }}" onclick="get_id(this)">Выдать ману</button>
             <script>
@@ -32,4 +33,5 @@
             <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
 	    </div>
     </form>
+    </div>
 {% endblock %}

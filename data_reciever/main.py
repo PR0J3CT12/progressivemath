@@ -9,4 +9,3 @@ if __name__ == '__main__':
     #db_update_students()
     #db_update_works_info()
     #db_update_total_grades()
-    #mana_give(25)

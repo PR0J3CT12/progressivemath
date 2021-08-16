@@ -5,6 +5,7 @@
 {% endblock %}
 
 {% block body %}
+    <div id="wrap">
     <form method="post">
         <p>
 	        <input type="text" id="student_login" name="login" placeholder="Логин">
@@ -21,12 +22,11 @@
             {% for message in messages %}
                 <p id="login_message" style="color: red; font-size: 12px; margin-left: 8px;">{{ message }}</p>
             {% endfor %}
-            </p>
         {% endif %}
         {% endwith %}
 	    <p>
 	        <input type="submit" name="login" value="Войти">
 	    </p>
     </form>
-
+    </div>
 {% endblock %}

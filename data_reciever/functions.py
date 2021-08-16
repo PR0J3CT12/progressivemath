@@ -277,6 +277,65 @@ def mana_give(student_id):
     cursor.execute("UPDATE students SET mana_earned = %s WHERE student_id = %s; COMMIT;", (mana, student_id))
 
 
+def lvl_update(student_id):
+    connection, cursor = db_connection()
+    cursor.execute('SELECT current_score FROM get_sum_classworks_score(%s)', (student_id,))
+    classworks_sum = cursor.fetchall()[0][0]
+    cursor.execute('SELECT current_score FROM get_sum_homeworks_score(%s)', (student_id,))
+    homeworks_sum = cursor.fetchall()[0][0]
+    if classworks_sum < 50:
+        classwork_lvl = 1
+    elif 50 <= classworks_sum < 110:
+        classwork_lvl = 2
+    elif 110 <= classworks_sum < 180:
+        classwork_lvl = 3
+    elif 180 <= classworks_sum < 260:
+        classwork_lvl = 4
+    elif 260 <= classworks_sum < 350:
+        classwork_lvl = 5
+    elif 350 <= classworks_sum < 450:
+        classwork_lvl = 6
+    elif 450 <= classworks_sum < 560:
+        classwork_lvl = 7
+    elif 560 <= classworks_sum < 680:
+        classwork_lvl = 8
+    elif 680 <= classworks_sum < 810:
+        classwork_lvl = 9
+    elif 810 <= classworks_sum < 950:
+        classwork_lvl = 10
+    elif 950 <= classworks_sum < 1100:
+        classwork_lvl = 11
+    else:
+        classwork_lvl = 12
+    if homeworks_sum < 50:
+        homework_lvl = 1
+    elif 50 <= homeworks_sum < 110:
+        homework_lvl = 2
+    elif 110 <= homeworks_sum < 180:
+        homework_lvl = 3
+    elif 180 <= homeworks_sum < 260:
+        homework_lvl = 4
+    elif 260 <= homeworks_sum < 350:
+        homework_lvl = 5
+    elif 350 <= homeworks_sum < 450:
+        homework_lvl = 6
+    elif 450 <= homeworks_sum < 560:
+        homework_lvl = 7
+    elif 560 <= homeworks_sum < 680:
+        homework_lvl = 8
+    elif 680 <= homeworks_sum < 810:
+        homework_lvl = 9
+    elif 810 <= homeworks_sum < 950:
+        homework_lvl = 10
+    elif 950 <= homeworks_sum < 1100:
+        homework_lvl = 11
+    else:
+        homework_lvl = 12
+    cursor.execute("UPDATE students SET homework_lvl = %s WHERE student_id = %s; COMMIT;", (homework_lvl, student_id))
+    cursor.execute("UPDATE students SET classwork_lvl = %s WHERE student_id = %s; COMMIT;", (classwork_lvl, student_id))
+
+
+
 @scheduler.scheduled_job(IntervalTrigger(minutes=3))
 def db_update_total_grades():
     """
@@ -341,6 +400,7 @@ def db_update_total_grades():
                 else:
                     mana = 0
                 cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s; COMMIT;", (mana, current_student_id, current_work_id))
+        lvl_update(current_student_id)
 
 
 if __name__ == '__main__':

@@ -107,7 +107,11 @@ def student_page(pid):
         cursor.execute('SELECT * FROM get_last_classwork_score(%s)', (current_user.student_id,))
         record = cursor.fetchall()[0]
         last_classwork_progress = round(record[0] / record[1] * 100)
-        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress]
+        cursor.execute('SELECT homework_lvl, classwork_lvl FROM students WHERE student_id = %s', (current_user.student_id,))
+        record = cursor.fetchall()[0]
+        homework_lvl = record[0]
+        classwork_lvl = record[1]
+        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl]
         cursor.close()
         connection.close()
         return render_template("student.html", data=data)
@@ -146,26 +150,17 @@ def db_operation(p_name):
     if current_user.is_authenticated:
         if current_user.student_id == 999:
             if p_name == 'update_grades':
-                print(p_name)
-                try:
-                    functions.db_update_total_grades()
-                except:
-                    print('Не вышло')
+                functions.db_update_total_grades()
             elif p_name == 'add_students':
-                print(p_name)
                 functions.db_update_students()
             elif p_name == 'restart_students':
-                print(p_name)
                 connection, cursor = functions.db_connection()
                 cursor.execute('TRUNCATE TABLE students RESTART IDENTITY CASCADE; COMMIT;')
                 functions.db_update_students()
                 connection.close()
                 cursor.close()
             elif p_name == 'update_works':
-                print(p_name)
                 functions.db_update_works_info()
-            else:
-                print('else')
             return redirect('/admin')
         else:
             return redirect('/login')

@@ -23,6 +23,12 @@
             <p>Результат последней классной работы</p>
             <progress max="100" value={{ data[3] }}></progress>
         </div>
+        <div>
+            <p>Уровень домашних работ {{ data[4] }}</p>
+        </div>
+        <div>
+            <p>Уровень классных работ {{ data[5] }}</p>
+        </div>
         <form method="post">
             <div>
                 <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
