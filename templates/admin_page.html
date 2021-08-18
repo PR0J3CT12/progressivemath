@@ -6,17 +6,21 @@
 {% block body %}
     <div id="wrap">
     <h1>Админская панель</h1>
-    {% for student in data %}
-        <div id="mana">
-            <p>{{ student[1] }}</p><p>{{ student[3] - student[2] }} маны</p>
-            <button type="button" id="{{ student[0] }}" onclick="get_id(this)">Выдать ману</button>
-            <script>
-                function get_id(obj) {
-                    window.location.replace(`/mana_give/${obj.id}`);
-                    }
-            </script>
+    <div class="scroll">
+        <div class="scroll-content">
+        {% for student in data %}
+            <div class="mana_box">
+                <p>{{ student[1] }}</p><p class="mana_item">{{ student[3] - student[2] }} маны</p>
+                <button class="mana fill" id="{{ student[0] }}" onclick="get_id(this)">Выдать ману</button>
+                <script>
+                    function get_id(obj) {
+                        window.location.replace(`/mana_give/${obj.id}`);
+                        }
+                </script>
+            </div>
+        {% endfor %}
         </div>
-    {% endfor %}
+    </div>
     <div>
             <script>
                 function get_name(obj) {

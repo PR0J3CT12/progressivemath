@@ -5,6 +5,12 @@
 
 body {
 	background: white;
+	justify-content: center;
+  	align-content: center;
+	align-items: center;
+  	text-align: center;
+  	min-height: 100vh;
+  	display: flex;
 }
 
 #wrap {
@@ -18,7 +24,47 @@ body {
 	margin-top: -450px;
 }
 
-#mana {
-	background: #d1d1d1;
+.mana_box {
 	width: 120px;
+	background: white;
+	border: 1px solid red;
+	border-radius: 10px
+}
+
+.scroll {
+  	height: 200px;
+	width: 140px;
+	background: #c6c6c6;
+	border-color: black;
+	overflow-x: hidden;
+	overflow-y: auto;
+	visibility: hidden;
+}
+
+.scroll-content,
+.scroll:hover,
+.scroll:focus {
+  	visibility: visible;
+	background: #c6c6c6;
+}
+
+.fill:hover,
+.fill:focus {
+  box-shadow: inset 0 0 0 2em lightgrey;
+}
+
+button.mana:hover, button.mana:focus {
+	border-color: grey;
+	color: grey;
+}
+
+button.mana {
+	color: grey;
+	transition: 0.25s;
+	background: none;
+	border: 1px solid;
+	line-height: 1;
+	margin: 0.5em;
+	padding: 1em 2em;
+	border-radius: 10px;
 }

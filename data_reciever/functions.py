@@ -99,6 +99,12 @@ def login_password_creator(name, row):
     return name, login, password, password_hash
 
 
+def admin_creator():
+    connection, cursor = db_connection()
+    hash_my = generate_password_hash('123')
+    cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
+
+
 def db_update_students():
     """
     Функция для обновления таблицы students
@@ -121,8 +127,7 @@ def db_update_students():
         if jump:
             jump = False
             continue
-        student_name = \
-            service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
+        student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
         with open('passwords.txt', 'a+') as f:
             f.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
@@ -132,8 +137,7 @@ def db_update_students():
     cursor.execute("SELECT * FROM students WHERE student_id=999;")
     admin_tmp = cursor.fetchall()
     if len(admin_tmp) == 0:
-        hash_my = generate_password_hash('123')
-        cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
+        admin_creator()
     if connection:
         cursor.close()
         connection.close()
@@ -142,7 +146,6 @@ def db_update_students():
                 x = f.readlines()
                 if len(x) != 0:
                     send_email('passwords.txt')
-
     else:
         return 'Не удалось подключиться к базе данных'
 
@@ -154,7 +157,7 @@ def info_creator(sheet_name):
     P.S. список учеников(ученик = словарь с результатами по каждой работе на листе
     """
     connection, cursor = db_connection()
-    cursor.execute("SELECT student_id FROM students")
+    cursor.execute("SELECT student_id FROM students WHERE student_id<999")
     number_of_students = len(cursor.fetchall())
     cursor.execute("SELECT work_name FROM works WHERE sheet_name = %s", (sheet_name,))
     works_names = cursor.fetchall()
@@ -206,6 +209,11 @@ def total_info_creator():
         current_sheet_students = info_creator(sheet_names[i])
         for j in range(len(current_sheet_students)):
             total_student_information[j] = total_student_information[j] | current_sheet_students[j]
+    for j in total_student_information:
+        if not j['Последняя домашняя работа']:
+            j['Последняя домашняя работа'] = 'Домашнее задание №1'
+        if not j['Последняя классная работа']:
+            j['Последняя классная работа'] = 'Классная работа №1'
     return total_student_information
 
 
@@ -335,7 +343,6 @@ def lvl_update(student_id):
     cursor.execute("UPDATE students SET classwork_lvl = %s WHERE student_id = %s; COMMIT;", (classwork_lvl, student_id))
 
 
-
 @scheduler.scheduled_job(IntervalTrigger(minutes=3))
 def db_update_total_grades():
     """
@@ -343,14 +350,15 @@ def db_update_total_grades():
     """
     connection, cursor = db_connection()
     cursor.execute("TRUNCATE TABLE total_grades;")
-    cursor.execute("SELECT student_id FROM students WHERE student_id < 999;")
+    cursor.execute("SELECT student_id, student_row FROM students WHERE student_id < 999;")
     students = cursor.fetchall()
     results = total_info_creator()
     for student in students:
         current_student_id = student[0]
+        current_student_row = student[1]
         cursor.execute("SELECT work_id, work_name FROM works;")
         record = cursor.fetchall()
-        current_student_results = results[current_student_id - 1]
+        current_student_results = results[current_student_row - 4]
         for work in record:
             current_work_name = work[1]
             current_work_id = work[0]

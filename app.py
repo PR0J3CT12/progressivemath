@@ -156,6 +156,7 @@ def db_operation(p_name):
             elif p_name == 'restart_students':
                 connection, cursor = functions.db_connection()
                 cursor.execute('TRUNCATE TABLE students RESTART IDENTITY CASCADE; COMMIT;')
+                functions.admin_creator()
                 functions.db_update_students()
                 connection.close()
                 cursor.close()
