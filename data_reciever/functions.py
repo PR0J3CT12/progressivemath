@@ -2,9 +2,11 @@
 from collections import defaultdict
 from random import randint
 from transliterate import translit
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash
 import psycopg2
-import os.path, os
+import os.path
+import os
+import json
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import smtplib
@@ -13,12 +15,13 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from platform import python_version
-
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-scheduler = BlockingScheduler()
 
+with open('data_reciever/secret/secret.json', 'r') as f:
+    secret_data = json.load(f)
+scheduler = BlockingScheduler()
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
                'Движение класс', 'Движение дз', 'Совместная класс', 'Совместная дз',
@@ -30,7 +33,7 @@ sheet_names = ['Площадь класс', 'Площадь дз', 'Части �
 def service_function():
     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'credentials.json')
+    SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'secret/credentials.json')
     credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     service = build('sheets', 'v4', credentials=credentials).spreadsheets().values()
     return service
@@ -41,13 +44,12 @@ def send_email(file):
     Send an email
     """
     server = 'smtp.gmail.com'
-    user = '7pr0j3ct12@gmail.com'
-    password = 'Nickrotay12'
+    user = 'progressive.mail.sender@gmail.com'
+    password = secret_data['mail_password']
     sender = user
     to_who = 'nik.rotay@gmail.com'
     subject = 'Пароли'
     text = 'Логины и пароли добавленных пользователей'
-    file = 'passwords.txt'
     basename = os.path.basename(file)
     filesize = os.path.getsize(file)
     msg = MIMEMultipart('alternative')
@@ -77,7 +79,7 @@ def db_connection():
     Возвращает connection и cursor
     """
     try:
-        connection = psycopg2.connect(user="postgres", password="Nickrotay12", host="127.0.0.1", port="5432", dbname="Progressive_math")
+        connection = psycopg2.connect(user=secret_data["db_user"], password=secret_data["db_password"], host=secret_data["db_host"], port=secret_data["db_port"], dbname=secret_data["db_name"])
         cursor = connection.cursor()
         return connection, cursor
     except:
@@ -101,7 +103,7 @@ def login_password_creator(name, row):
 
 def admin_creator():
     connection, cursor = db_connection()
-    hash_my = generate_password_hash('123')
+    hash_my = generate_password_hash(secret_data["admin_password"])
     cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
 
 
@@ -109,8 +111,8 @@ def db_update_students():
     """
     Функция для обновления таблицы students
     """
-    if os.path.isfile('passwords.txt'):
-        os.remove('passwords.txt')
+    if os.path.isfile('secret/passwords.txt'):
+        os.remove('secret/passwords.txt')
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
@@ -129,7 +131,7 @@ def db_update_students():
             continue
         student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
-        with open('passwords.txt', 'a+') as f:
+        with open('secret/passwords.txt', 'a+') as f:
             f.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
         cursor.execute(
             "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT",
@@ -141,11 +143,11 @@ def db_update_students():
     if connection:
         cursor.close()
         connection.close()
-        if os.path.isfile('passwords.txt'):
-            with open('passwords.txt', 'r') as f:
+        if os.path.isfile('secret/passwords.txt'):
+            with open('secret/passwords.txt', 'r') as f:
                 x = f.readlines()
                 if len(x) != 0:
-                    send_email('passwords.txt')
+                    send_email('secret/passwords.txt')
     else:
         return 'Не удалось подключиться к базе данных'
 

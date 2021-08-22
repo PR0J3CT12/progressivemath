@@ -1,17 +1,25 @@
 from flask import Flask, render_template, url_for, request, redirect, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, fresh_login_required, \
-    current_user
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, fresh_login_required, current_user
 from flask_cors import CORS, cross_origin
+import json
 import psycopg2
 from data_reciever import functions
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import check_password_hash
 
+
+with open('data_reciever/secret/secret.json', 'r') as f:
+    secret_data = json.load(f)
 app = Flask(__name__)
 cors = CORS(app)
-app.secret_key = "kolya i sandr gei"
+app.secret_key = secret_data['secret_key']
 app.debug = True
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Nickrotay12@localhost:5432/Progressive_math'
+db_user = secret_data['db_user']
+db_password = secret_data['db_password']
+db_host = secret_data['db_host']
+db_port = secret_data['db_port']
+db_name = secret_data['db_name']
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 login_manager = LoginManager(app)
 db = SQLAlchemy(app)
