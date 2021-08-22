@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Рейтинг | Курсы прогрессивной математики
+{% endblock %}
+
+{% block body %}
+    <div>
+        <h1>Рейтинг</h1>
+        {% for student in data %}
+                    <div id="{{ student[0] }}">
+                        <p>{{ student[1] }} {{ student[2] }} уровень</p>
+                    </div>
+        {% endfor %}
+        <button type="button" id="back-from-rating-btn" onclick="location.href='/student/1'">Назад</button>
+    </div>
+{% endblock %}
