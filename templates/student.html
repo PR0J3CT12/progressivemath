@@ -3,7 +3,14 @@
 {% block title %}
     {{ current_user.student_name }} | Личный кабинет
 {% endblock %}
-
+<!--
+data[0] - % в домашках
+data[1] - % в классных
+data[2] - % в последней домашке
+data[3] - % в последней классной
+data[4] - lvl
+data[6] - Мана
+-->
 {% block body %}
     <div>
         <h1>{{ current_user.student_name }}</h1>
@@ -24,7 +31,13 @@
             <progress max="100" value={{ data[3] }}></progress>
         </div>
         <div>
-            <p>Уровень домашних работ {{ data[4] }}</p>
+            <p>Уровень: {{ data[4] }}</p>
+        </div>
+        <div>
+            <p>Мана: {{ data[6] }}</p>
+        </div>
+        <div>
+            <button type="button" id="more-btn" onclick="location.href='/stats'">Подробная статистика</button>
         </div>
         <div>
             <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>

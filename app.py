@@ -56,21 +56,6 @@ def login_page():
     return render_template('login_page.html')
 
 
-'''
-@app.route('/auth', methods=['POST'])
-def login_page():
-    json_payload = request.get_json()
-    user_entry = User.query.filter_by(student_login=json_payload['login']).first()
-    if user_entry:
-        if check_password_hash(user_entry.student_password, json_payload['password']):
-            login_user(user_entry)
-            return {"isLoggedIn": current_user.is_authenticated,
-                    "user_id": user_entry.student_id}, 200
-
-    return jsonify(authorization=False), 403
-'''
-
-
 @app.route('/logout', methods=['POST', 'GET'])
 def logout_page():
     if current_user.is_authenticated:
@@ -111,13 +96,36 @@ def student_page(pid):
         record = cursor.fetchall()[0]
         homework_lvl = record[0]
         classwork_lvl = record[1]
-        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl]
-        cursor.execute('SELECT homework_lvl, classwork_lvl FROM students WHERE student_id = %s', (current_user.student_id,))
+        cursor.execute("SELECT mana_earned, SUM(mana) FROM students JOIN total_grades ON student_id = fk_student_id JOIN works ON fk_work_id = work_id WHERE is_homework = 'True' AND student_id = %s GROUP BY mana_earned", (current_user.student_id,))
+        mana_tmp = cursor.fetchall()[0]
+        mana = mana_tmp[1] - mana_tmp[0]
+        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl, mana]
         cursor.close()
         connection.close()
         return render_template("student.html", data=data)
     else:
         return redirect(url_for('student_page', pid=current_user.student_id))
+
+
+@app.route('/student')
+def student():
+    return redirect(url_for('login_page'))
+
+
+@app.route('/stats/<int:pid>')
+@login_required
+def stats_page(pid):
+    if pid == 999:
+        return redirect(url_for('admin'))
+    if pid == current_user.student_id:
+        return render_template("stats_page.html")
+    else:
+        return redirect(url_for('stats_page', pid=current_user.student_id))
+
+
+@app.route('/stats')
+def stats():
+    return redirect(url_for('stats_page', pid=current_user.student_id))
 
 
 @app.route('/admin')
@@ -175,8 +183,7 @@ def db_operation(p_name):
                 functions.db_update_students()
             elif p_name == 'restart_students':
                 connection, cursor = functions.db_connection()
-                cursor.execute('TRUNCATE TABLE students RESTART IDENTITY CASCADE; COMMIT;')
-                functions.admin_creator()
+                cursor.execute('DELETE FROM students WHERE student_id < 999; ALTER SEQUENCE seq_student_id RESTART WITH 1; COMMIT;')
                 functions.db_update_students()
                 connection.close()
                 cursor.close()

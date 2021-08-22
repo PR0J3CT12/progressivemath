@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {{ current_user.student_name }} | Личный кабинет
+{% endblock %}
+
+{% block body %}
+    <div>
+        <h1>{{ current_user.student_name }}</h1>
+        <div>
+             <button type="button" id="back-from-stats-btn" onclick="location.href='/student'">Назад</button>
+             <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+        </div>
+    </div>
+{% endblock %}

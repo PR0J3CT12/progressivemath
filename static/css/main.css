@@ -34,7 +34,7 @@ body {
 .scroll {
   	height: 200px;
 	width: 140px;
-	background: #c6c6c6;
+	background: white;
 	border-color: black;
 	overflow-x: hidden;
 	overflow-y: auto;
@@ -45,7 +45,7 @@ body {
 .scroll:hover,
 .scroll:focus {
   	visibility: visible;
-	background: #c6c6c6;
+	background: white;
 }
 
 .fill:hover,
