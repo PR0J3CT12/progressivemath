@@ -112,6 +112,7 @@ def student_page(pid):
         homework_lvl = record[0]
         classwork_lvl = record[1]
         data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl]
+        cursor.execute('SELECT homework_lvl, classwork_lvl FROM students WHERE student_id = %s', (current_user.student_id,))
         cursor.close()
         connection.close()
         return render_template("student.html", data=data)
@@ -126,7 +127,11 @@ def admin():
         connection, cursor = functions.db_connection()
         cursor.execute('SELECT * FROM waiting_for_mana()')
         waiters_for_mana = cursor.fetchall()
-        return render_template('admin_page.html', data=waiters_for_mana)
+        cursor.execute('SELECT student_name FROM students WHERE student_id < 999 ORDER BY student_id;')
+        added_students = cursor.fetchall()
+        cursor.close()
+        connection.close()
+        return render_template('admin_page.html', data=waiters_for_mana, students=added_students)
     else:
         return redirect(url_for('student_page', pid=current_user.student_id))
 
@@ -140,6 +145,21 @@ def mana_give(pid):
             return redirect('/admin')
         else:
             return redirect('/login')
+    else:
+        return redirect('/login')
+
+
+@app.route('/rating')
+@login_required
+def rating():
+    if current_user.is_authenticated:
+        current_id = current_user.student_id
+        connection, cursor = functions.db_connection()
+        cursor.execute("SELECT student_id, student_name, homework_lvl FROM students WHERE student_id < 999 ORDER BY homework_lvl DESC;")
+        ratings = cursor.fetchall()
+        cursor.close()
+        connection.close()
+        return render_template('rating_page.html', data=ratings, current_id=current_id)
     else:
         return redirect('/login')
 

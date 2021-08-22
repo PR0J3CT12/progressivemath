@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block body %}
-    <div id="wrap">
+    <div>
         <h1>{{ current_user.student_name }}</h1>
         <div>
             <p>Текущий прогресс домашних работ</p>
@@ -27,12 +27,8 @@
             <p>Уровень домашних работ {{ data[4] }}</p>
         </div>
         <div>
-            <p>Уровень классных работ {{ data[5] }}</p>
+            <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+            <button type="button" id="rating-btn" onclick="location.href='/rating'">Рейтинг</button>
         </div>
-        <form method="post">
-            <div>
-                <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
-            </div>
-        </form>
     </div>
 {% endblock %}
