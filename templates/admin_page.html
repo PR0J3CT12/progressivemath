@@ -3,7 +3,9 @@
     Панель администратора
 {% endblock %}
 <!--
-students - добавленные в базу данных студенты
+students - добавленные в базу данных студенты:
+    ...[0] - id студента
+    ...[1] - Фамилия и имя студента
 data - ожидающие ману:
     ...[0] - id студента
     ...[1] - Фамилия и имя студента
@@ -31,7 +33,7 @@ data - ожидающие ману:
         <div>
             {% for student in students %}
                 <div>
-                    <p>{{ student[0] }}</p>
+                    <button type="button" name="to-student-page-btn" onclick="location.href=`/student/{{ student[0] }}`">{{ student[1] }}</button>
                 </div>
             {% endfor %}
         </div>

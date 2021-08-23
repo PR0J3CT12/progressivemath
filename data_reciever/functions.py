@@ -31,6 +31,9 @@ sheet_names = ['Площадь класс', 'Площадь дз', 'Части �
 
 
 def service_function():
+    """
+    Функция для работы с Google sheet API
+    """
     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'secret/credentials.json')
@@ -41,7 +44,8 @@ def service_function():
 
 def send_email(file):
     """
-    Send an email
+    Функция для отправки файла с паролями
+    На вход файл с паролями
     """
     server = 'smtp.gmail.com'
     user = 'progressive.mail.sender@gmail.com'
@@ -102,6 +106,9 @@ def login_password_creator(name, row):
 
 
 def admin_creator():
+    """
+    Функция для создания админки
+    """
     connection, cursor = db_connection()
     hash_my = generate_password_hash(secret_data["admin_password"])
     cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
@@ -131,8 +138,8 @@ def db_update_students():
             continue
         student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
-        with open('secret/passwords.txt', 'a+') as f:
-            f.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
+        with open('secret/passwords.txt', 'a+') as ff:
+            ff.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
         cursor.execute(
             "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT",
             (student_name, info[1], info[3], row))
@@ -144,12 +151,12 @@ def db_update_students():
         cursor.close()
         connection.close()
         if os.path.isfile('secret/passwords.txt'):
-            with open('secret/passwords.txt', 'r') as f:
-                x = f.readlines()
+            with open('secret/passwords.txt', 'r') as ff:
+                x = ff.readlines()
                 if len(x) != 0:
                     send_email('secret/passwords.txt')
     else:
-        return 'Не удалось подключиться к базе данных'
+        raise Exception('Cant connect to db')
 
 
 def info_creator(sheet_name):
@@ -174,12 +181,9 @@ def info_creator(sheet_name):
                 pass
             else:
                 data[i][j] = int(data[i][j])
-    is_last_classwork = False
-    is_last_homework = False
     for student in data:
         is_last_classwork = False
         is_last_homework = False
-        is_last_work = False
         current_student_dict = defaultdict(list)
         for i in range(len(all_borders)):
             list_of_grades = student[all_borders[i][0]:all_borders[i][1] + 1]
@@ -189,10 +193,8 @@ def info_creator(sheet_name):
             if len(cur_string) != 0:
                 if is_homework_list is True:
                     is_last_homework = works_names[i][0]
-                    is_last_work = True
                 else:
                     is_last_classwork = works_names[i][0]
-                    is_last_work = True
             current_student_dict[works_names[i][0]] = list_of_grades
         if is_last_homework:
             current_student_dict['Последняя домашняя работа'] = is_last_homework
@@ -281,6 +283,10 @@ def db_update_works_info():
 
 
 def mana_give(student_id):
+    """
+    Функция для выдачи маны ученику с id = student_id
+    На вход student_id
+    """
     connection, cursor = db_connection()
     cursor.execute("SELECT SUM(mana) FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True';", (student_id,))
     mana = cursor.fetchall()[0][0]
@@ -288,6 +294,10 @@ def mana_give(student_id):
 
 
 def lvl_update(student_id):
+    """
+    Функция для обновления уровней студента с id = student_id
+    На вход student_id
+    """
     connection, cursor = db_connection()
     cursor.execute('SELECT current_score FROM get_sum_classworks_score(%s)', (student_id,))
     classworks_sum = cursor.fetchall()[0][0]

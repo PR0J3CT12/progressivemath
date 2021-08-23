@@ -36,7 +36,7 @@ class User(db.Model, UserMixin):
         return self.student_id
 
 
-@app.route('/', methods=['POST', 'GET'])
+@app.route('/')
 def main_page():
     return redirect('/login')
 
@@ -64,7 +64,7 @@ def login_page():
     return render_template('login_page.html')
 
 
-@app.route('/logout', methods=['POST', 'GET'])
+@app.route('/logout')
 def logout_page():
     if current_user.is_authenticated:
         logout_user()
@@ -149,7 +149,7 @@ def admin():
         connection, cursor = functions.db_connection()
         cursor.execute('SELECT * FROM waiting_for_mana()')
         waiters_for_mana = cursor.fetchall()
-        cursor.execute('SELECT student_name FROM students WHERE student_id < 999 ORDER BY student_id;')
+        cursor.execute('SELECT student_id, student_name FROM students WHERE student_id < 999 ORDER BY student_id;')
         added_students = cursor.fetchall()
         cursor.close()
         connection.close()
