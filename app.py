@@ -84,30 +84,26 @@ def redirect_to_sign_in(response):
 @app.route('/student/<int:pid>')
 @login_required
 def student_page(pid):
-    if pid == 999:
-        return redirect(url_for('admin'))
-    if pid == current_user.student_id:
+    if pid == current_user.student_id or 999:
         connection, cursor = functions.db_connection()
-        cursor.execute('SELECT * FROM get_current_homework_progress(%s)', (current_user.student_id,))
-        record = cursor.fetchall()[0]
-        current_homework_progress = round(record[0] / record[1] * 100)
-        cursor.execute('SELECT * FROM get_current_classwork_progress(%s)', (current_user.student_id,))
-        record = cursor.fetchall()[0]
-        current_classwork_progress = round(record[0] / record[1] * 100)
-        cursor.execute('SELECT * FROM get_last_homework_score(%s)', (current_user.student_id,))
-        record = cursor.fetchall()[0]
-        last_homework_progress = round(record[0] / record[1] * 100)
-        cursor.execute('SELECT * FROM get_last_classwork_score(%s)', (current_user.student_id,))
-        record = cursor.fetchall()[0]
-        last_classwork_progress = round(record[0] / record[1] * 100)
-        cursor.execute('SELECT homework_lvl, classwork_lvl FROM students WHERE student_id = %s', (current_user.student_id,))
+        cursor.execute('SELECT student_name FROM students WHERE student_id = %s', (pid,))
+        current_student_name = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_current_homework_progress(%s)', (pid,))
+        current_homework_progress = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_current_classwork_progress(%s)', (pid,))
+        current_classwork_progress = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_last_homework_score(%s)', (pid,))
+        last_homework_progress = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_last_classwork_score(%s)', (pid,))
+        last_classwork_progress = cursor.fetchall()[0][0]
+        cursor.execute('SELECT homework_lvl, classwork_lvl FROM students WHERE student_id = %s', (pid,))
         record = cursor.fetchall()[0]
         homework_lvl = record[0]
         classwork_lvl = record[1]
-        cursor.execute("SELECT mana_earned, SUM(mana) FROM students JOIN total_grades ON student_id = fk_student_id JOIN works ON fk_work_id = work_id WHERE is_homework = 'True' AND student_id = %s GROUP BY mana_earned", (current_user.student_id,))
+        cursor.execute("SELECT mana_earned, SUM(mana) FROM students JOIN total_grades ON student_id = fk_student_id JOIN works ON fk_work_id = work_id WHERE is_homework = 'True' AND student_id = %s GROUP BY mana_earned", (pid,))
         mana_tmp = cursor.fetchall()[0]
         mana = mana_tmp[1] - mana_tmp[0]
-        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl, mana]
+        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl, mana, current_student_name]
         cursor.close()
         connection.close()
         return render_template("student.html", data=data)
@@ -123,10 +119,20 @@ def student():
 @app.route('/stats/<int:pid>')
 @login_required
 def stats_page(pid):
-    if pid == 999:
-        return redirect(url_for('admin'))
-    if pid == current_user.student_id:
-        return render_template("stats_page.html")
+    if pid == current_user.student_id or 999:
+        connection, cursor = functions.db_connection()
+        cursor.execute('SELECT student_name FROM students WHERE student_id = %s', (pid,))
+        current_student_name = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_current_homework_progress(%s)', (pid,))
+        current_student_homework_progress = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_current_classwork_progress(%s)', (pid,))
+        current_student_classwork_progress = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_homeworks_progress_others(%s)', (pid,))
+        others_homework_progress = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_classworks_progress_others(%s)', (pid,))
+        others_classwork_progress = cursor.fetchall()[0][0]
+        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress]
+        return render_template("stats_page.html", data=data)
     else:
         return redirect(url_for('stats_page', pid=current_user.student_id))
 

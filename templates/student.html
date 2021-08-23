@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    {{ current_user.student_name }} | Личный кабинет
+    {{ data[7] }} | Личный кабинет
 {% endblock %}
 <!--
 data[0] - % в домашках
@@ -10,10 +10,11 @@ data[2] - % в последней домашке
 data[3] - % в последней классной
 data[4] - lvl
 data[6] - Мана
+data[7] - Фамилия и имя ученика
 -->
 {% block body %}
     <div>
-        <h1>{{ current_user.student_name }}</h1>
+        <h1>{{ data[7] }}</h1>
         <div>
             <p>Текущий прогресс домашних работ</p>
             <progress max="100" value={{ data[0] }}></progress>

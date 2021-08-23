@@ -1,14 +1,28 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    {{ current_user.student_name }} | Личный кабинет
+    {{ data[0] }} | Личный кабинет
 {% endblock %}
-
+<!--
+data[0] - Фамилия и имя ученика
+data[1] - % всех домашек ученика
+data[2] - % всех классных ученика
+data[3] - % всех домашек остальных учеников
+data[4] - % всех классных остальных учеников
+-->
 {% block body %}
     <div>
-        <h1>{{ current_user.student_name }}</h1>
+        <h1>{{ data[0] }}</h1>
         <div>
-             <button type="button" id="back-from-stats-btn" onclick="location.href='/student'">Назад</button>
+            <p>Все домашки:</p>
+            <p><progress max="100" value={{ data[1] }}></progress></p>
+            <p><progress max="100" value={{ data[2] }}></progress></p>
+            <p>Все классные:</p>
+            <p><progress max="100" value={{ data[3] }}></progress></p>
+            <p><progress max="100" value={{ data[4] }}></progress></p>
+        </div>
+        <div>
+             <button type="button" id="back-from-stats-btn" onclick="history.back()">Назад</button>
              <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
         </div>
     </div>

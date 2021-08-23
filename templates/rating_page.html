@@ -3,7 +3,12 @@
 {% block title %}
     Рейтинг | Курсы прогрессивной математики
 {% endblock %}
-
+<!--
+data - список учеников в бд:
+    ...[0] - student_id
+    ...[1] - Фамилия и имя ученика
+    ...[2] - lvl ученика
+-->
 {% block body %}
     <div>
         <h1>Рейтинг</h1>
@@ -12,6 +17,6 @@
                         <p>{{ student[1] }} {{ student[2] }} уровень</p>
                     </div>
         {% endfor %}
-        <button type="button" id="back-from-rating-btn" onclick="location.href='/student/1'">Назад</button>
+        <button type="button" id="back-from-rating-btn" onclick="history.back()">Назад</button>
     </div>
 {% endblock %}
