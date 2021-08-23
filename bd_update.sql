@@ -124,3 +124,13 @@ CREATE OR REPLACE FUNCTION get_classworks_progress_others(IN current_student_id 
 	GROUP BY fk_student_id
 	ORDER BY fk_student_id) AS select_for_function
 $$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_themes;
+CREATE OR REPLACE FUNCTION get_themes(IN current_student_id integer) RETURNS SETOF varchar AS $$
+	SELECT DISTINCT sheet_name
+	FROM works
+	JOIN total_grades ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE is_homework = 'True'
+	AND sheet_name NOT LIKE 'Экзамен%' AND student_id = current_student_id AND work_id <= last_homework_id;
+$$ LANGUAGE SQL;
