@@ -11,6 +11,7 @@ data[3] - % в последней классной
 data[4] - lvl
 data[6] - Мана
 data[7] - Фамилия и имя ученика
+data[8] - id ученика
 -->
 {% block body %}
     <div>
@@ -38,11 +39,14 @@ data[7] - Фамилия и имя ученика
             <p>Мана: {{ data[6] }}</p>
         </div>
         <div>
-            <button type="button" id="more-btn" onclick="location.href='/stats'">Подробная статистика</button>
+            <button type="button" id="more-btn" onclick="location.href=`/stats/{{ data[8] }}`">Подробная статистика</button>
         </div>
         <div>
             <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
             <button type="button" id="rating-btn" onclick="location.href='/rating'">Рейтинг</button>
+            {% if current_user.student_id == 999 %}
+                <button type="button" id="back-to-admin-btn" onclick="location.href='/admin'">Админка</button>
+            {% endif %}
         </div>
     </div>
 {% endblock %}

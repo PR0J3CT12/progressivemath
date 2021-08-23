@@ -9,21 +9,38 @@ data[1] - % всех домашек ученика
 data[2] - % всех классных ученика
 data[3] - % всех домашек остальных учеников
 data[4] - % всех классных остальных учеников
+data[5] - % в последней домашке
+data[6] - % в этой домашке у остальных
+data[7] - % в последней классной
+data[8] - % в это классной у остальных
+data[9] - Список прошедших тем
 -->
 {% block body %}
     <div>
         <h1>{{ data[0] }}</h1>
         <div>
-            <p>Все домашки:</p>
-            <p><progress max="100" value={{ data[1] }}></progress></p>
-            <p><progress max="100" value={{ data[2] }}></progress></p>
-            <p>Все классные:</p>
-            <p><progress max="100" value={{ data[3] }}></progress></p>
-            <p><progress max="100" value={{ data[4] }}></progress></p>
+            <div>
+                <p>Последняя домашняя:</p>
+                <p><progress max="100" value={{ data[5] }}></progress></p>
+                <p><progress max="100" value={{ data[6] }}></progress></p>
+            </div>
+            <div>
+                <label>
+                    <select onchange="if (this.value) window.location.href = this.value">
+                        <option value="">Выбрать тему</option>
+                        {% for theme in data[9] %}
+                            <option value="">{{ theme }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
         </div>
         <div>
-             <button type="button" id="back-from-stats-btn" onclick="history.back()">Назад</button>
-             <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+            <button type="button" id="back-from-stats-btn" onclick="history.back()">Назад</button>
+            <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+            {% if current_user.student_id == 999 %}
+                <button type="button" id="back-to-admin-btn" onclick="location.href='/admin'">Админка</button>
+            {% endif %}
         </div>
     </div>
 {% endblock %}

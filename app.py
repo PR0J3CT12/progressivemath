@@ -86,8 +86,10 @@ def redirect_to_sign_in(response):
 def student_page(pid):
     if pid == current_user.student_id or 999:
         connection, cursor = functions.db_connection()
-        cursor.execute('SELECT student_name FROM students WHERE student_id = %s', (pid,))
-        current_student_name = cursor.fetchall()[0][0]
+        cursor.execute('SELECT student_id, student_name FROM students WHERE student_id = %s', (pid,))
+        record = cursor.fetchall()[0]
+        current_student_id = record[0]
+        current_student_name = record[1]
         cursor.execute('SELECT * FROM get_current_homework_progress(%s)', (pid,))
         current_homework_progress = cursor.fetchall()[0][0]
         cursor.execute('SELECT * FROM get_current_classwork_progress(%s)', (pid,))
@@ -103,7 +105,7 @@ def student_page(pid):
         cursor.execute("SELECT mana_earned, SUM(mana) FROM students JOIN total_grades ON student_id = fk_student_id JOIN works ON fk_work_id = work_id WHERE is_homework = 'True' AND student_id = %s GROUP BY mana_earned", (pid,))
         mana_tmp = cursor.fetchall()[0]
         mana = mana_tmp[1] - mana_tmp[0]
-        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl, mana, current_student_name]
+        data = [current_homework_progress, current_classwork_progress, last_homework_progress, last_classwork_progress, homework_lvl, classwork_lvl, mana, current_student_name, current_student_id]
         cursor.close()
         connection.close()
         return render_template("student.html", data=data)
@@ -113,7 +115,10 @@ def student_page(pid):
 
 @app.route('/student')
 def student():
-    return redirect(url_for('login_page'))
+    if current_user.student_id != 999:
+        return redirect(url_for('student_page', pid=current_user.student_id))
+    else:
+        return redirect(url_for('admin'))
 
 
 @app.route('/stats/<int:pid>')
@@ -131,7 +136,21 @@ def stats_page(pid):
         others_homework_progress = cursor.fetchall()[0][0]
         cursor.execute('SELECT * FROM get_classworks_progress_others(%s)', (pid,))
         others_classwork_progress = cursor.fetchall()[0][0]
-        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress]
+        cursor.execute('SELECT * FROM comparing_last_homework(%s)', (pid,))
+        last_homework_others = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_last_homework_score(%s)', (pid,))
+        last_homework = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM comparing_last_classwork(%s)', (pid,))
+        last_classwork_others = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_last_classwork_score(%s)', (pid,))
+        last_classwork = cursor.fetchall()[0][0]
+        cursor.execute('SELECT * FROM get_themes(%s)', (pid,))
+        record = cursor.fetchall()
+        themes = []
+        for theme in record:
+            themes.append(theme[0][:-3])
+        print(themes)
+        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress, last_homework, last_homework_others, last_classwork, last_classwork_others, themes]
         return render_template("stats_page.html", data=data)
     else:
         return redirect(url_for('stats_page', pid=current_user.student_id))
@@ -139,7 +158,10 @@ def stats_page(pid):
 
 @app.route('/stats')
 def stats():
-    return redirect(url_for('stats_page', pid=current_user.student_id))
+    if current_user.student_id != 999:
+        return redirect(url_for('stats_page', pid=current_user.student_id))
+    else:
+        return redirect(url_for('admin'))
 
 
 @app.route('/admin')

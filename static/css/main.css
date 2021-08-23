@@ -3,6 +3,12 @@
 	margin-left: 1px;
 }
 
+header {
+  position: relative;
+  display: flex;
+  height: 100px;
+}
+
 body {
 	background: white;
 	justify-content: center;

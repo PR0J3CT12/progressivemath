@@ -19,6 +19,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 
+#with open('secret/secret.json', 'r') as f:
 with open('data_reciever/secret/secret.json', 'r') as f:
     secret_data = json.load(f)
 scheduler = BlockingScheduler()
