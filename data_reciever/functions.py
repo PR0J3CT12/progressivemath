@@ -25,9 +25,9 @@ with open('data_reciever/secret/secret.json', 'r') as f:
 scheduler = BlockingScheduler()
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
-               'Движение класс', 'Движение дз', 'Совместная класс', 'Совместная дз',
+               'Движение класс', 'Движение дз', 'Совместная работа класс', 'Совместная работа дз',
                'Обратный ход класс', 'Обратный ход дз', 'Головы и ноги класс',
-               'Головы и ноги дз', 'Экзамен письм класс',
+               'Головы и ноги дз', 'Экзамен письм класс', 'Экзамен письм дз(баллы 2007)',
                'Экзамен письм дз', 'Экзамен устный класс', 'Экзамен устный дз']
 
 
@@ -119,8 +119,8 @@ def db_update_students():
     """
     Функция для обновления таблицы students
     """
-    if os.path.isfile('secret/passwords.txt'):
-        os.remove('secret/passwords.txt')
+    if os.path.isfile('data_reciever/secret/passwords.txt'):
+        os.remove('data_reciever/secret/passwords.txt')
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
@@ -139,7 +139,7 @@ def db_update_students():
             continue
         student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
-        with open('secret/passwords.txt', 'a+') as ff:
+        with open('data_reciever/secret/passwords.txt', 'a+') as ff:
             ff.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
         cursor.execute(
             "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT",
@@ -151,11 +151,11 @@ def db_update_students():
     if connection:
         cursor.close()
         connection.close()
-        if os.path.isfile('secret/passwords.txt'):
-            with open('secret/passwords.txt', 'r') as ff:
+        if os.path.isfile('data_reciever/secret/passwords.txt'):
+            with open('data_reciever/secret/passwords.txt', 'r') as ff:
                 x = ff.readlines()
                 if len(x) != 0:
-                    send_email('secret/passwords.txt')
+                    send_email('data_reciever/secret/passwords.txt')
     else:
         raise Exception('Cant connect to db')
 
@@ -407,9 +407,9 @@ def db_update_total_grades():
                     current_work_grade += int(current_work_grades_list[i])
             cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score, max_score, exercises) VALUES (%s, %s, %s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade, current_max_score, current_exercises))
             cursor.execute("SELECT * FROM get_current_homework_score(%s, %s)", (current_student_id, current_work_id))
-            tmp_var = cursor.fetchall()[0]
-            if tmp_var[0] is not None and tmp_var[1] is not None:
-                percentage = int(tmp_var[1] / tmp_var[0] * 100)
+            tmp_var = cursor.fetchall()[0][0]
+            if tmp_var is not None:
+                percentage = int(tmp_var)
                 if 0 < percentage <= 25:
                     mana = 1
                 elif 25 < percentage <= 50:

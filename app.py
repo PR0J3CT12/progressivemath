@@ -149,7 +149,6 @@ def stats_page(pid):
         themes = []
         for theme in record:
             themes.append(theme[0][:-3])
-        print(themes)
         data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress, last_homework, last_homework_others, last_classwork, last_classwork_others, themes]
         return render_template("stats_page.html", data=data)
     else:
