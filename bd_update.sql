@@ -153,7 +153,7 @@ $$ LANGUAGE SQL;
 
 DROP FUNCTION IF EXISTS comparing_last_classwork;
 CREATE OR REPLACE FUNCTION comparing_last_classwork(IN current_student_id integer, OUT perc double precision) AS $$
-	SELECT * FROM get_last_homework_others(1, (SELECT last_classwork_id FROM students WHERE student_id = 1))
+	SELECT * FROM get_last_classwork_others(1, (SELECT last_classwork_id FROM students WHERE student_id = 1))
 $$ LANGUAGE SQL;
 
 DROP FUNCTION IF EXISTS comparing_last_homework;
