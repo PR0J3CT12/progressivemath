@@ -135,12 +135,12 @@ CREATE OR REPLACE FUNCTION get_themes(IN current_student_id integer) RETURNS SET
 	AND sheet_name NOT LIKE 'Экзамен%' AND student_id = current_student_id AND work_id <= last_homework_id;
 $$ LANGUAGE SQL;
 
-DROP FUNCTION IF EXISTS get_last_classwork_others;
-CREATE OR REPLACE FUNCTION get_last_classwork_others(IN current_student_id integer, IN current_work_id integer, OUT perc double precision) AS $$
+DROP FUNCTION IF EXISTS get_last_homework_others;
+CREATE OR REPLACE FUNCTION get_last_homework_others(IN current_student_id integer, IN current_work_id integer, OUT perc double precision) AS $$
 	SELECT ROUND((CAST(SUM(score) as FLOAT) / CAST(SUM(max_score) as FLOAT))*100::numeric)
 	FROM total_grades
 	RIGHT JOIN students ON fk_student_id != student_id
-	WHERE student_id = current_student_id AND fk_work_id = last_classwork_id;
+	WHERE student_id = current_student_id AND fk_work_id = last_homework_id;
 $$ LANGUAGE SQL;
 
 DROP FUNCTION IF EXISTS get_last_classwork_others;
