@@ -4,6 +4,7 @@
     {{ data[0] }} | Личный кабинет
 {% endblock %}
 <!--
+gid - id графика
 data[0] - Фамилия и имя ученика
 data[1] - % всех домашек ученика
 data[2] - % всех классных ученика
@@ -14,25 +15,51 @@ data[6] - % в этой домашке у остальных
 data[7] - % в последней классной
 data[8] - % в это классной у остальных
 data[9] - Список прошедших тем
+data[10] - Оценки для графика:
+    в формате [(14, 11.25), (10, 1.0)], где (оценка конкретного ученика, оценка остальных учеников)
+data[11] - Проходной балл
 -->
 {% block body %}
     <div>
         <h1>{{ data[0] }}</h1>
+            <script>
+                gid = window.location.search;
+                gid = gid.substring(5);
+            </script>
         <div>
             <div>
                 <p>Последняя домашняя:</p>
                 <p><progress max="100" value={{ data[5] }}></progress></p>
                 <p><progress max="100" value={{ data[6] }}></progress></p>
             </div>
+            <div id="gid"></div>
             <div>
                 <label>
-                    <select onchange="if (this.value) window.location.href = this.value">
-                        <option value="">Выбрать тему</option>
-                        {% for theme in data[9] %}
-                            <option value="">{{ theme }}</option>
-                        {% endfor %}
+                    <select id='select' onchange="if (this.value) window.location.href = this.value">
+                        <option value="">Выберите график</option>
+                        <optgroup label="Домашние работы">
+                            <option value='{{ pid }}/graph/1' {% if 'Площадь' not in data[9] %} disabled {% endif %} {% if gid == 1 %} selected {% endif %}>Площадь</option>
+                            <option value='{{ pid }}/graph/2' {% if 'Части' not in data[9] %} disabled {% endif %} {% if gid == 2 %} selected {% endif %}>Части</option>
+                            <option value='{{ pid }}/graph/3' {% if 'Движение' not in data[9] %} disabled {% endif %} {% if gid == 3 %} selected {% endif %}>Движение</option>
+                            <option value='{{ pid }}/graph/4' {% if 'Совместная работа' not in data[9] %} disabled {% endif %} {% if gid == 4 %} selected= {% endif %}>Совместная работа</option>
+                            <option value='{{ pid }}/graph/5' {% if 'Обратный ход' not in data[9] %} disabled {% endif %} {% if gid == 5 %} selected {% endif %}>Обратный ход</option>
+                            <option value='{{ pid }}/graph/6' {% if 'Головы и ноги' not in data[9] %} disabled {% endif %} {% if gid == 6 %} selected {% endif %}>Головы и ноги</option>
+                        </optgroup>
+                        <optgroup label="Экзамены">
+                            <option value='{{ pid }}/graph/7' {% if gid == 7 %} selected="selected" {% endif %}>Письменный</option>
+                            <option value='{{ pid }}/graph/8' {% if gid == 8 %} selected="selected" {% endif %}>Устный</option>
+                        </optgroup>
                     </select>
                 </label>
+                {% if gid == 1 %} <div id="graph1">Тут надо вставить график 1</div> {% endif %}
+                {% if gid == 2 %} <div id="graph2">Тут надо вставить график 2</div> {% endif %}
+                {% if gid == 3 %} <div id="graph3">Тут надо вставить график 3</div> {% endif %}
+                {% if gid == 4 %} <div id="graph4">Тут надо вставить график 4</div> {% endif %}
+                {% if gid == 5 %} <div id="graph5">Тут надо вставить график 5</div> {% endif %}
+                {% if gid == 6 %} <div id="graph6">Тут надо вставить график 6</div> {% endif %}
+                {% if gid == 7 %} <div id="graph7">Тут надо вставить график 7</div> {% endif %}
+                {% if gid == 8 %} <div id="graph8">Тут надо вставить график 8</div> {% endif %}
+
             </div>
         </div>
         <div>

@@ -160,3 +160,26 @@ DROP FUNCTION IF EXISTS comparing_last_homework;
 CREATE OR REPLACE FUNCTION comparing_last_homework(IN current_student_id integer, OUT perc double precision) AS $$
 	SELECT * FROM get_last_homework_others(1, (SELECT last_homework_id FROM students WHERE student_id = 1))
 $$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_exam_score;
+CREATE OR REPLACE FUNCTION get_exam_score(IN current_student_id integer) RETURNS TABLE(work_id integer, grade integer) AS $$
+	SELECT fk_work_id, score FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE sheet_name = 'Экзамен письм дз(баллы 2007)' AND fk_student_id = current_student_id AND last_homework_id >= fk_work_id
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_exam_score_others;
+CREATE OR REPLACE FUNCTION get_exam_score_others(IN current_student_id integer) RETURNS TABLE(others_work_id integer, others_grade double precision) AS $$
+	SELECT fk_work_id, CAST(AVG(score) as FLOAT) FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE sheet_name = 'Экзамен письм дз(баллы 2007)' AND fk_student_id != current_student_id AND (SELECT last_homework_id FROM students WHERE student_id = current_student_id) >= fk_work_id
+	GROUP BY fk_work_id
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS compare_exams;
+CREATE OR REPLACE FUNCTION compare_exams(IN current_student_id integer) RETURNS TABLE(current_student_grades integer, others_grade double precision) AS $$
+	SELECT grade, others_grade FROM get_exam_score(current_student_id)
+	JOIN (SELECT * FROM get_exam_score_others(current_student_id)) AS other_students ON work_id = others_work_id
+$$ LANGUAGE SQL;

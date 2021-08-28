@@ -20,7 +20,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 
 #with open('secret/secret.json', 'r') as f:
-with open('data_reciever/secret/secret.json', 'r') as f:
+with open('secret/secret.json', 'r') as f:
     secret_data = json.load(f)
 scheduler = BlockingScheduler()
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
@@ -37,7 +37,7 @@ def service_function():
     """
     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'secret/credentials.json')
+    SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, '../secret/credentials.json')
     credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     service = build('sheets', 'v4', credentials=credentials).spreadsheets().values()
     return service
@@ -119,8 +119,8 @@ def db_update_students():
     """
     Функция для обновления таблицы students
     """
-    if os.path.isfile('data_reciever/secret/passwords.txt'):
-        os.remove('data_reciever/secret/passwords.txt')
+    if os.path.isfile('../secret/passwords.txt'):
+        os.remove('../secret/passwords.txt')
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
@@ -139,7 +139,7 @@ def db_update_students():
             continue
         student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
-        with open('data_reciever/secret/passwords.txt', 'a+') as ff:
+        with open('../secret/passwords.txt', 'a+') as ff:
             ff.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
         cursor.execute(
             "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT",
@@ -151,11 +151,11 @@ def db_update_students():
     if connection:
         cursor.close()
         connection.close()
-        if os.path.isfile('data_reciever/secret/passwords.txt'):
-            with open('data_reciever/secret/passwords.txt', 'r') as ff:
+        if os.path.isfile('../secret/passwords.txt'):
+            with open('../secret/passwords.txt', 'r') as ff:
                 x = ff.readlines()
                 if len(x) != 0:
-                    send_email('data_reciever/secret/passwords.txt')
+                    send_email('../secret/passwords.txt')
     else:
         raise Exception('Cant connect to db')
 

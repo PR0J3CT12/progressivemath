@@ -1,3 +1,4 @@
+import flask
 from flask import Flask, render_template, url_for, request, redirect, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, fresh_login_required, current_user
@@ -8,7 +9,7 @@ from data_reciever import functions
 from werkzeug.security import check_password_hash
 
 
-with open('data_reciever/secret/secret.json', 'r') as f:
+with open('secret/secret.json', 'r') as f:
     secret_data = json.load(f)
 app = Flask(__name__)
 cors = CORS(app)
@@ -124,6 +125,11 @@ def student():
 @app.route('/stats/<int:pid>')
 @login_required
 def stats_page(pid):
+    gid = flask.request.url
+    if 'gid' in gid:
+        graph_id = int(gid.split('gid=')[1])
+    else:
+        graph_id = 0
     if pid == current_user.student_id or 999:
         connection, cursor = functions.db_connection()
         cursor.execute('SELECT student_name FROM students WHERE student_id = %s', (pid,))
@@ -149,10 +155,28 @@ def stats_page(pid):
         themes = []
         for theme in record:
             themes.append(theme[0][:-3])
-        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress, last_homework, last_homework_others, last_classwork, last_classwork_others, themes]
-        return render_template("stats_page.html", data=data)
+        cursor.execute('SELECT * FROM compare_exams(%s)', (pid,))
+        exam_grades = cursor.fetchall()
+        exam_grade_needed = 9
+        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress, last_homework, last_homework_others, last_classwork, last_classwork_others, themes, exam_grades, exam_grade_needed]
+        return render_template("stats_page.html", data=data, pid=pid, gid=graph_id)
     else:
         return redirect(url_for('stats_page', pid=current_user.student_id))
+
+
+@app.route('/stats/<int:pid>/graph/<int:gid>')
+@login_required
+def graph_page(pid, gid):
+    if pid == current_user.student_id or 999:
+        return redirect(url_for('stats_page', pid=pid, gid=gid))
+
+
+@app.route('/stats/<int:pid>/graph')
+def graph(pid):
+    if current_user.student_id != 999:
+        return redirect(url_for('stats_page', pid=pid))
+    else:
+        return redirect(url_for('admin'))
 
 
 @app.route('/stats')
