@@ -17,9 +17,9 @@ from email import encoders
 from platform import python_version
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from PIL import Image, ImageDraw, ImageFont
 
 
-#with open('secret/secret.json', 'r') as f:
 with open('secret/secret.json', 'r') as f:
     secret_data = json.load(f)
 scheduler = BlockingScheduler()
@@ -422,6 +422,173 @@ def db_update_total_grades():
                     mana = 0
                 cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s; COMMIT;", (mana, current_student_id, current_work_id))
         lvl_update(current_student_id)
+
+
+def exam_graph(name, grades_list, pid, minimum_grade=9):
+    font = ImageFont.truetype("static/font.ttf", 40//2)
+    title_font = ImageFont.truetype("static/font.ttf", 70//2)
+    digits_font = ImageFont.truetype("static/font.ttf", 30//2)
+    color_current = (125, 175, 255)
+    color_others = (255, 120, 40)
+    sq_size = 50 // 2
+    img_height = (20 + 6) * sq_size
+    img_width = (36 + 6) * sq_size
+    im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
+    draw = ImageDraw.Draw(im)
+    draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
+    draw.line(((0, 0), (img_width, 0)), (170, 170, 170), width=1)
+    draw.line(((img_width, 0), (img_width, img_height)), (170, 170, 170), width=3)
+    draw.line(((0, img_height), (img_width, img_height)), (170, 170, 170), width=3)
+    draw.rectangle((sq_size * 3, sq_size * 3, img_width - sq_size * 3, img_height - sq_size * 3), (245, 245, 245))
+    draw.line((sq_size * 3, img_height - sq_size * (3 + minimum_grade), img_width - sq_size * 3, img_height - sq_size * (3 + minimum_grade)), (155, 155, 155), width=1)
+    draw.text((img_width // 2, img_height - sq_size * (minimum_grade + 3)), "проходной балл", (155, 155, 155), font=font, anchor='mt')
+    draw.line(((sq_size * 3, sq_size * 3), (sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((sq_size * 3, sq_size * 3), (img_width - sq_size * 3, sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((img_width - sq_size * 3, sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((sq_size * 3, img_height - sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    digit = 18
+    for i in range(0, 19):
+        draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (4 + i) + sq_size * (6 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
+        digit -= 1
+    dots_current = []
+    column = 6
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][0])
+        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade + 0.15)), fill=color_current)
+        dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
+        column += 3
+    if len(dots_current) > 1:
+        for i in range(len(dots_current) - 1):
+            draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
+    dots_others = []
+    column = 6
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][1])
+        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height//sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height//sq_size - 3) - grade + 0.15)), fill=color_others)
+        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade)])
+        column += 3
+    if len(dots_others) > 1:
+        for i in range(len(dots_others) - 1):
+            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=6)
+    draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
+    draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
+    draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
+    draw.ellipse(((img_width // 2 + img_width - sq_size * 3) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (img_width // 2 + img_width - sq_size * 3) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_others)
+    draw.text((img_width // 2, sq_size * 3 // 2), "Письменный экзамен", "black", font=title_font, anchor='mm')
+    im.save(f'static/exam_graph_{pid}.png')
+
+
+def exam_graph_speaking(name, grades_list, pid):
+    font = ImageFont.truetype("static/font.ttf", 40//2)
+    title_font = ImageFont.truetype("static/font.ttf", 70//2)
+    digits_font = ImageFont.truetype("static/font.ttf", 30//2)
+    color_current = (125, 175, 255)
+    color_others = (255, 120, 40)
+    sq_size = 50 // 2
+    img_height = (20 + 6) * sq_size
+    img_width = (36 + 6) * sq_size
+    im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
+    draw = ImageDraw.Draw(im)
+    draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
+    draw.line(((0, 0), (img_width, 0)), (170, 170, 170), width=1)
+    draw.line(((img_width, 0), (img_width, img_height)), (170, 170, 170), width=3)
+    draw.line(((0, img_height), (img_width, img_height)), (170, 170, 170), width=3)
+    draw.rectangle((sq_size * 3, sq_size * 3, img_width - sq_size * 3, img_height - sq_size * 3), (245, 245, 245))
+    draw.line(((sq_size * 3, sq_size * 3), (sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((sq_size * 3, sq_size * 3), (img_width - sq_size * 3, sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((img_width - sq_size * 3, sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((sq_size * 3, img_height - sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    digit = 18
+    for i in range(0, 19):
+        draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (4 + i) + sq_size * (6 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
+        digit -= 1
+    dots_current = []
+    column = 4
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][0])
+        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade + 0.15)), fill=color_current)
+        dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
+        column += 2
+    if len(dots_current) > 1:
+        for i in range(len(dots_current) - 1):
+            draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
+    dots_others = []
+    column = 4
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][1])
+        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height//sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height//sq_size - 3) - grade + 0.15)), fill=color_others)
+        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade)])
+        column += 2
+    if len(dots_others) > 1:
+        for i in range(len(dots_others) - 1):
+            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=6)
+    draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
+    draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
+    draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
+    draw.ellipse(((img_width // 2 + img_width - sq_size * 3) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (img_width // 2 + img_width - sq_size * 3) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_others)
+    draw.text((img_width // 2, sq_size * 3 // 2), "Устный экзамен", "black", font=title_font, anchor='mm')
+    im.save(f'static/exam_graph_speaking_{pid}.png')
+
+
+def split_grades_themes(themes_grades_list):
+    grades = defaultdict(list)
+    for work in themes_grades_list:
+        grade = work[1], work[2]
+        grades[work[0]] += [grade]
+    return grades
+
+
+def all_graphs(name, grades_list, theme, pid):
+    font = ImageFont.truetype("static/font.ttf", 40)
+    title_font = ImageFont.truetype("static/font.ttf", 70)
+    digits_font = ImageFont.truetype("static/font.ttf", 30)
+    color_current = (125, 175, 255)
+    color_others = (255, 120, 40)
+    sq_size = 50
+    img_height = (20 + 6) * sq_size
+    img_width = (36 + 6) * sq_size
+    im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
+    draw = ImageDraw.Draw(im)
+    draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
+    draw.line(((0, 0), (img_width, 0)), (170, 170, 170), width=1)
+    draw.line(((img_width, 0), (img_width, img_height)), (170, 170, 170), width=3)
+    draw.line(((0, img_height), (img_width, img_height)), (170, 170, 170), width=3)
+    draw.rectangle((sq_size * 3, sq_size * 3, img_width - sq_size * 3, img_height - sq_size * 3), (245, 245, 245))
+    draw.line(((sq_size * 3, sq_size * 3), (sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((sq_size * 3, sq_size * 3), (img_width - sq_size * 3, sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((img_width - sq_size * 3, sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    draw.line(((sq_size * 3, img_height - sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
+    digit = 100
+    for i in range(0, 21):
+        draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (2 + i) + sq_size * (4 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
+        digit -= 5
+    dots_current = []
+    column = 4.5
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][0])
+        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade / 5 - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade / 5 + 0.125)), fill=color_current)
+        dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade / 5)])
+        column += 9
+    if len(dots_current) > 1:
+        for i in range(len(dots_current) - 1):
+            draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
+    dots_others = []
+    column = 4.5
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][1])
+        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height//sq_size - 3) - grade / 5 - 0.15), sq_size * (column + 0.15), sq_size * ((img_height//sq_size - 3) - grade / 5 + 0.15)), fill=color_others)
+        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade / 5)])
+        column += 9
+    if len(dots_others) > 1:
+        for i in range(len(dots_others) - 1):
+            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=6)
+    draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
+    draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
+    draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
+    draw.ellipse(((img_width // 2 + img_width - sq_size * 3) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (img_width // 2 + img_width - sq_size * 3) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_others)
+    draw.text((img_width // 2, sq_size * 3 // 2), theme, "black", font=title_font, anchor='mm')
+    print(im.size)
+    im.save(f'static/all_graphs_{theme}_{pid}.png')
 
 
 if __name__ == '__main__':

@@ -174,7 +174,7 @@ CREATE OR REPLACE FUNCTION get_exam_score_others(IN current_student_id integer) 
 	SELECT fk_work_id, CAST(AVG(score) as FLOAT) FROM total_grades
 	JOIN works ON fk_work_id = work_id
 	JOIN students ON fk_student_id = student_id
-	WHERE sheet_name = 'Экзамен письм дз(баллы 2007)' AND fk_student_id != current_student_id AND (SELECT last_homework_id FROM students WHERE student_id = current_student_id) >= fk_work_id
+	WHERE sheet_name = 'Экзамен письм дз(баллы 2007)' AND fk_student_id != current_student_id AND (SELECT last_homework_id FROM students WHERE student_id = current_student_id) >= fk_work_id AND last_homework_id >= fk_work_id
 	GROUP BY fk_work_id
 $$ LANGUAGE SQL;
 
@@ -182,4 +182,50 @@ DROP FUNCTION IF EXISTS compare_exams;
 CREATE OR REPLACE FUNCTION compare_exams(IN current_student_id integer) RETURNS TABLE(current_student_grades integer, others_grade double precision) AS $$
 	SELECT grade, others_grade FROM get_exam_score(current_student_id)
 	JOIN (SELECT * FROM get_exam_score_others(current_student_id)) AS other_students ON work_id = others_work_id
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_exam_score_speaking;
+CREATE OR REPLACE FUNCTION get_exam_score_speaking(IN current_student_id integer) RETURNS TABLE(work_id integer, grade integer) AS $$
+	SELECT fk_work_id, score FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE sheet_name = 'Экзамен устный дз' AND fk_student_id = current_student_id AND last_homework_id >= fk_work_id
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_exam_score_others_speaking;
+CREATE OR REPLACE FUNCTION get_exam_score_others_speaking(IN current_student_id integer) RETURNS TABLE(others_work_id integer, others_grade double precision) AS $$
+	SELECT fk_work_id, CAST(AVG(score) as FLOAT) FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE sheet_name = 'Экзамен устный дз' AND fk_student_id != current_student_id AND (SELECT last_homework_id FROM students WHERE student_id = current_student_id) >= fk_work_id AND last_homework_id >= fk_work_id
+	GROUP BY fk_work_id
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS compare_exams_speaking;
+CREATE OR REPLACE FUNCTION compare_exams_speaking(IN current_student_id integer) RETURNS TABLE(current_student_grades integer, others_grade double precision) AS $$
+	SELECT grade, others_grade FROM get_exam_score_speaking(current_student_id)
+	JOIN (SELECT * FROM get_exam_score_others_speaking(current_student_id)) AS other_students ON work_id = others_work_id
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_themes_score;
+CREATE OR REPLACE FUNCTION get_themes_score(IN current_student_id integer) RETURNS TABLE(work_id integer, theme varchar, grade integer) AS $$
+	SELECT fk_work_id, LEFT(sheet_name, -3), CAST(ROUND((CAST(score as FLOAT) / CAST(max_score as FLOAT))*100::numeric) AS INTEGER) FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE sheet_name NOT LIKE 'Экзамен%' AND fk_student_id = current_student_id AND last_homework_id >= fk_work_id AND is_homework = 'True'
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_themes_score_others;
+CREATE OR REPLACE FUNCTION get_themes_score_others(IN current_student_id integer) RETURNS TABLE(others_work_id integer, theme varchar, others_grade integer) AS $$
+	SELECT fk_work_id,  LEFT(sheet_name, -3), CAST(AVG(ROUND((CAST(score as FLOAT) / CAST(max_score as FLOAT))*100::numeric)) AS INTEGER) FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE sheet_name NOT LIKE 'Экзамен%' AND fk_student_id != current_student_id AND (SELECT last_homework_id FROM students WHERE student_id = current_student_id) >= fk_work_id AND is_homework = 'True' AND last_homework_id >= fk_work_id
+	GROUP BY fk_work_id, sheet_name
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS compare_themes;
+CREATE OR REPLACE FUNCTION compare_themes(IN current_student_id integer) RETURNS TABLE(theme varchar, current_student_grades integer, others_grade integer) AS $$
+	SELECT get_themes_score.theme, grade, others_grade FROM get_themes_score(current_student_id)
+	JOIN (SELECT * FROM get_themes_score_others(current_student_id)) AS other_students ON work_id = others_work_id
 $$ LANGUAGE SQL;

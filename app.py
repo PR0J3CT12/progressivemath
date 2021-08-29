@@ -4,9 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, fresh_login_required, current_user
 from flask_cors import CORS, cross_origin
 import json
-import psycopg2
+import os
 from data_reciever import functions
 from werkzeug.security import check_password_hash
+import glob
 
 
 with open('secret/secret.json', 'r') as f:
@@ -22,6 +23,7 @@ db_port = secret_data['db_port']
 db_name = secret_data['db_name']
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 login_manager = LoginManager(app)
 db = SQLAlchemy(app)
 
@@ -126,6 +128,10 @@ def student():
 @login_required
 def stats_page(pid):
     gid = flask.request.url
+    if os.path.isfile(f'static/exam_graph_{pid}.png'):
+        os.remove(f'static/exam_graph_{pid}.png')
+    if os.path.isfile(f'static/exam_graph_speaking_{pid}.png'):
+        os.remove(f'static/exam_graph_speaking_{pid}.png')
     if 'gid' in gid:
         graph_id = int(gid.split('gid=')[1])
     else:
@@ -154,12 +160,55 @@ def stats_page(pid):
         record = cursor.fetchall()
         themes = []
         for theme in record:
-            themes.append(theme[0][:-3])
+            cur_theme = theme[0][:-3]
+            themes.append(cur_theme)
+            if os.path.isfile(f'static/all_graphs_{cur_theme}_{pid}.png'):
+                os.remove(f'static/all_graphs_{cur_theme}_{pid}.png')
         cursor.execute('SELECT * FROM compare_exams(%s)', (pid,))
         exam_grades = cursor.fetchall()
         exam_grade_needed = 9
-        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress, last_homework, last_homework_others, last_classwork, last_classwork_others, themes, exam_grades, exam_grade_needed]
-        return render_template("stats_page.html", data=data, pid=pid, gid=graph_id)
+        if exam_grades:
+            exam = True
+        else:
+            exam = False
+        cursor.execute('SELECT * FROM compare_exams_speaking(%s)', (pid,))
+        exam_grades_speaking = cursor.fetchall()
+        if exam_grades_speaking:
+            exam_speaking = True
+        else:
+            exam_speaking = False
+        cursor.execute("SELECT * FROM compare_themes(%s)", (pid,))
+        themes_grades = cursor.fetchall()
+        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress, last_homework, last_homework_others, last_classwork, last_classwork_others, themes, exam_grades, exam_grade_needed, exam_grades_speaking, themes_grades]
+        if graph_id == 1:
+            themes_dict = functions.split_grades_themes(themes_grades)
+            theme = 'Площадь'
+            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
+        elif graph_id == 2:
+            themes_dict = functions.split_grades_themes(themes_grades)
+            theme = 'Части'
+            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
+        elif graph_id == 3:
+            themes_dict = functions.split_grades_themes(themes_grades)
+            theme = 'Движение'
+            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
+        elif graph_id == 4:
+            themes_dict = functions.split_grades_themes(themes_grades)
+            theme = 'Совместная работа'
+            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
+        elif graph_id == 5:
+            themes_dict = functions.split_grades_themes(themes_grades)
+            theme = 'Обратный ход'
+            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
+        elif graph_id == 6:
+            themes_dict = functions.split_grades_themes(themes_grades)
+            theme = 'Головы и ноги'
+            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
+        elif graph_id == 7:
+            functions.exam_graph(current_student_name, exam_grades, pid, exam_grade_needed)
+        elif graph_id == 8:
+            functions.exam_graph_speaking(current_student_name, exam_grades_speaking, pid)
+        return render_template("stats_page.html", data=data, pid=pid, gid=graph_id, ex=exam, ex_s=exam_speaking)
     else:
         return redirect(url_for('stats_page', pid=current_user.student_id))
 
