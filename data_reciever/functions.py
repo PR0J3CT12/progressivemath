@@ -587,7 +587,6 @@ def all_graphs(name, grades_list, theme, pid):
     draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
     draw.ellipse(((img_width // 2 + img_width - sq_size * 3) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (img_width // 2 + img_width - sq_size * 3) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_others)
     draw.text((img_width // 2, sq_size * 3 // 2), theme, "black", font=title_font, anchor='mm')
-    print(im.size)
     im.save(f'static/all_graphs_{theme}_{pid}.png')
 
 
