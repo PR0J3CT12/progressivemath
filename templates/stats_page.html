@@ -66,7 +66,7 @@ data[13] - Оценки по темам в формате:
             </div>
         </div>
         <div>
-            <button type="button" id="back-from-stats-btn" onclick="history.back()">Назад</button>
+            <button type="button" id="back-from-stats-btn" onclick="location.href='/student/{{ pid }}'">Назад</button>
             <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
             {% if current_user.student_id == 999 %}
                 <button type="button" id="back-to-admin-btn" onclick="location.href='/admin'">Админка</button>

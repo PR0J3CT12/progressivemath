@@ -87,7 +87,7 @@ def redirect_to_sign_in(response):
 @app.route('/student/<int:pid>')
 @login_required
 def student_page(pid):
-    if pid == current_user.student_id or 999:
+    if pid == current_user.student_id or current_user.student_id == 999:
         connection, cursor = functions.db_connection()
         cursor.execute('SELECT student_id, student_name FROM students WHERE student_id = %s', (pid,))
         record = cursor.fetchall()[0]
@@ -136,7 +136,7 @@ def stats_page(pid):
         graph_id = int(gid.split('gid=')[1])
     else:
         graph_id = 0
-    if pid == current_user.student_id or 999:
+    if pid == current_user.student_id or current_user.student_id == 999:
         connection, cursor = functions.db_connection()
         cursor.execute('SELECT student_name FROM students WHERE student_id = %s', (pid,))
         current_student_name = cursor.fetchall()[0][0]
@@ -216,7 +216,7 @@ def stats_page(pid):
 @app.route('/stats/<int:pid>/graph/<int:gid>')
 @login_required
 def graph_page(pid, gid):
-    if pid == current_user.student_id or 999:
+    if pid == current_user.student_id or current_user.student_id == 999:
         return redirect(url_for('stats_page', pid=pid, gid=gid))
 
 
