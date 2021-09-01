@@ -18,19 +18,35 @@ data[8] - id ученика
         <h1>{{ data[7] }}</h1>
         <div>
             <p>Текущий прогресс домашних работ</p>
-            <progress max="100" value={{ data[0] }}></progress>
+            <div class="progress">
+                <progress id="progress1" max="100" value={{ data[0] }}></progress>
+                <div class="progress-value"></div>
+                <div class="progress-bg"><div class="progress-bar"></div></div>
+            </div>
         </div>
         <div>
             <p>Текущий прогресс классных работ</p>
-            <progress max="100" value={{ data[1] }}></progress>
+            <div class="progress">
+                <progress id="progress2" max="100" value={{ data[1] }}></progress>
+                <div class="progress-value"></div>
+                <div class="progress-bg"><div class="progress-bar"></div></div>
+            </div>
         </div>
         <div>
             <p>Результат последней домашней работы</p>
-            <progress max="100" value={{ data[2] }}></progress>
+            <div class="progress">
+                <progress id="progress3" max="100" value={{ data[2] }}></progress>
+                <div class="progress-value"></div>
+                <div class="progress-bg"><div class="progress-bar"></div></div>
+            </div>
         </div>
         <div>
             <p>Результат последней классной работы</p>
-            <progress max="100" value={{ data[3] }}></progress>
+            <div class="progress">
+                <progress max="100" value={{ data[3] }}></progress>
+                <div class="progress-value"></div>
+                <div class="progress-bg"><div class="progress-bar"></div></div>
+            </div>
         </div>
         <div>
             <p>Уровень: {{ data[4] }}</p>
@@ -42,11 +58,11 @@ data[8] - id ученика
             <button type="button" id="more-btn" onclick="location.href=`/stats/{{ data[8] }}`">Подробная статистика</button>
         </div>
         <div>
-            <button type="button" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+            <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
             <button type="button" id="rating-btn" onclick="location.href='/rating'">Рейтинг</button>
-            {% if current_user.student_id == 999 %}
-                <button type="button" id="back-to-admin-btn" onclick="location.href='/admin'">Админка</button>
-            {% endif %}
         </div>
     </div>
+    {% if current_user.student_id == 999 %}
+        <button type="button" class="btn back-to-admin-btn" onclick="location.href='/admin'">Админка</button>
+    {% endif %}
 {% endblock %}

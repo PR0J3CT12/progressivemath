@@ -119,8 +119,8 @@ def db_update_students():
     """
     Функция для обновления таблицы students
     """
-    if os.path.isfile('../secret/passwords.txt'):
-        os.remove('../secret/passwords.txt')
+    if os.path.isfile('secret/passwords.txt'):
+        os.remove('secret/passwords.txt')
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
@@ -139,7 +139,7 @@ def db_update_students():
             continue
         student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
-        with open('../secret/passwords.txt', 'a+') as ff:
+        with open('secret/passwords.txt', 'a+') as ff:
             ff.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
         cursor.execute(
             "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT",
@@ -151,11 +151,11 @@ def db_update_students():
     if connection:
         cursor.close()
         connection.close()
-        if os.path.isfile('../secret/passwords.txt'):
-            with open('../secret/passwords.txt', 'r') as ff:
+        if os.path.isfile('secret/passwords.txt'):
+            with open('secret/passwords.txt', 'r') as ff:
                 x = ff.readlines()
                 if len(x) != 0:
-                    send_email('../secret/passwords.txt')
+                    send_email('secret/passwords.txt')
     else:
         raise Exception('Cant connect to db')
 
@@ -425,14 +425,16 @@ def db_update_total_grades():
 
 
 def exam_graph(name, grades_list, pid, minimum_grade=9):
-    font = ImageFont.truetype("static/font.ttf", 40//2)
-    title_font = ImageFont.truetype("static/font.ttf", 70//2)
-    digits_font = ImageFont.truetype("static/font.ttf", 30//2)
+    font = ImageFont.truetype("static/font.ttf", 40)
+    title_font = ImageFont.truetype("static/font.ttf", 70)
+    digits_font = ImageFont.truetype("static/font.ttf", 30)
     color_current = (125, 175, 255)
     color_others = (255, 120, 40)
-    sq_size = 50 // 2
-    img_height = (20 + 6) * sq_size
-    img_width = (36 + 6) * sq_size
+    sq_size = 50
+    y = 20
+    x = 36
+    img_height = (y + 6) * sq_size
+    img_width = (x + 6) * sq_size
     im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
     draw = ImageDraw.Draw(im)
     draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
@@ -450,26 +452,26 @@ def exam_graph(name, grades_list, pid, minimum_grade=9):
     for i in range(0, 19):
         draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (4 + i) + sq_size * (6 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
         digit -= 1
+    dots_others = []
+    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][1])
+        draw.ellipse((sq_size * (column - 0.25), sq_size * ((img_height//sq_size - 3) - grade - 0.25), sq_size * (column + 0.25), sq_size * ((img_height//sq_size - 3) - grade + 0.25)), fill=color_others)
+        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade)])
+        column += x / len(grades_list)
+    if len(dots_others) > 1:
+        for i in range(len(dots_others) - 1):
+            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=10)
     dots_current = []
-    column = 6
+    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
     for i in range(len(grades_list)):
         grade = int(grades_list[i][0])
         draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade + 0.15)), fill=color_current)
         dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
-        column += 3
+        column += x / len(grades_list)
     if len(dots_current) > 1:
         for i in range(len(dots_current) - 1):
             draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
-    dots_others = []
-    column = 6
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][1])
-        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height//sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height//sq_size - 3) - grade + 0.15)), fill=color_others)
-        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade)])
-        column += 3
-    if len(dots_others) > 1:
-        for i in range(len(dots_others) - 1):
-            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=6)
     draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
     draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
     draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
@@ -479,14 +481,16 @@ def exam_graph(name, grades_list, pid, minimum_grade=9):
 
 
 def exam_graph_speaking(name, grades_list, pid):
-    font = ImageFont.truetype("static/font.ttf", 40//2)
-    title_font = ImageFont.truetype("static/font.ttf", 70//2)
-    digits_font = ImageFont.truetype("static/font.ttf", 30//2)
+    font = ImageFont.truetype("static/font.ttf", 40)
+    title_font = ImageFont.truetype("static/font.ttf", 70)
+    digits_font = ImageFont.truetype("static/font.ttf", 30)
     color_current = (125, 175, 255)
     color_others = (255, 120, 40)
-    sq_size = 50 // 2
-    img_height = (20 + 6) * sq_size
-    img_width = (36 + 6) * sq_size
+    y = 20
+    x = 36
+    sq_size = 50
+    img_height = (y + 6) * sq_size
+    img_width = (x + 6) * sq_size
     im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
     draw = ImageDraw.Draw(im)
     draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
@@ -502,26 +506,26 @@ def exam_graph_speaking(name, grades_list, pid):
     for i in range(0, 19):
         draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (4 + i) + sq_size * (6 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
         digit -= 1
+    dots_others = []
+    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][1])
+        draw.ellipse((sq_size * (column - 0.25), sq_size * ((img_height // sq_size - 3) - grade - 0.25), sq_size * (column + 0.25), sq_size * ((img_height // sq_size - 3) - grade + 0.25)), fill=color_others)
+        dots_others.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
+        column += x / len(grades_list)
+    if len(dots_others) > 1:
+        for i in range(len(dots_others) - 1):
+            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=10)
     dots_current = []
-    column = 4
+    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
     for i in range(len(grades_list)):
         grade = int(grades_list[i][0])
         draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade + 0.15)), fill=color_current)
         dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
-        column += 2
+        column += x / len(grades_list)
     if len(dots_current) > 1:
         for i in range(len(dots_current) - 1):
             draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
-    dots_others = []
-    column = 4
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][1])
-        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height//sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height//sq_size - 3) - grade + 0.15)), fill=color_others)
-        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade)])
-        column += 2
-    if len(dots_others) > 1:
-        for i in range(len(dots_others) - 1):
-            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=6)
     draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
     draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
     draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
@@ -545,8 +549,10 @@ def all_graphs(name, grades_list, theme, pid):
     color_current = (125, 175, 255)
     color_others = (255, 120, 40)
     sq_size = 50
-    img_height = (20 + 6) * sq_size
-    img_width = (36 + 6) * sq_size
+    y = 20
+    x = 36
+    img_height = (y + 6) * sq_size
+    img_width = (x + 6) * sq_size
     im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
     draw = ImageDraw.Draw(im)
     draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
@@ -562,26 +568,26 @@ def all_graphs(name, grades_list, theme, pid):
     for i in range(0, 21):
         draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (2 + i) + sq_size * (4 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
         digit -= 5
+    dots_others = []
+    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
+    for i in range(len(grades_list)):
+        grade = int(grades_list[i][1])
+        draw.ellipse((sq_size * (column - 0.25), sq_size * ((img_height//sq_size - 3) - grade / 5 - 0.25), sq_size * (column + 0.25), sq_size * ((img_height//sq_size - 3) - grade / 5 + 0.25)), fill=color_others)
+        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade / 5)])
+        column += x / len(grades_list)
+    if len(dots_others) > 1:
+        for i in range(len(dots_others) - 1):
+            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=10)
     dots_current = []
-    column = 4.5
+    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
     for i in range(len(grades_list)):
         grade = int(grades_list[i][0])
         draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade / 5 - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade / 5 + 0.125)), fill=color_current)
         dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade / 5)])
-        column += 9
+        column += x / len(grades_list)
     if len(dots_current) > 1:
         for i in range(len(dots_current) - 1):
             draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
-    dots_others = []
-    column = 4.5
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][1])
-        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height//sq_size - 3) - grade / 5 - 0.15), sq_size * (column + 0.15), sq_size * ((img_height//sq_size - 3) - grade / 5 + 0.15)), fill=color_others)
-        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade / 5)])
-        column += 9
-    if len(dots_others) > 1:
-        for i in range(len(dots_others) - 1):
-            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=6)
     draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
     draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
     draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)

@@ -63,7 +63,7 @@ def login_page():
             else:
                 return redirect(url_for('student_page', pid=page_id))
         else:
-            flash('Login or password is not correct')
+            flash('Неверный логин или пароль')
     return render_template('login_page.html')
 
 
@@ -94,13 +94,13 @@ def student_page(pid):
         current_student_id = record[0]
         current_student_name = record[1]
         cursor.execute('SELECT * FROM get_current_homework_progress(%s)', (pid,))
-        current_homework_progress = cursor.fetchall()[0][0]
+        current_homework_progress = int(cursor.fetchall()[0][0])
         cursor.execute('SELECT * FROM get_current_classwork_progress(%s)', (pid,))
-        current_classwork_progress = cursor.fetchall()[0][0]
+        current_classwork_progress = int(cursor.fetchall()[0][0])
         cursor.execute('SELECT * FROM get_last_homework_score(%s)', (pid,))
-        last_homework_progress = cursor.fetchall()[0][0]
+        last_homework_progress = int(cursor.fetchall()[0][0])
         cursor.execute('SELECT * FROM get_last_classwork_score(%s)', (pid,))
-        last_classwork_progress = cursor.fetchall()[0][0]
+        last_classwork_progress = int(cursor.fetchall()[0][0])
         cursor.execute('SELECT homework_lvl, classwork_lvl FROM students WHERE student_id = %s', (pid,))
         record = cursor.fetchall()[0]
         homework_lvl = record[0]

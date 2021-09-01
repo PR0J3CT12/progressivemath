@@ -10,13 +10,14 @@ data - список учеников в бд:
     ...[2] - lvl ученика
 -->
 {% block body %}
-    <div>
+    <div class="rating_block">
         <h1>Рейтинг</h1>
         {% for student in data %}
-                    <div id="{{ student[0] }}">
-                        <p>{{ student[1] }} {{ student[2] }} уровень</p>
-                    </div>
+            <div {% if current_id == student[0] %} class="current_rating" {% endif %} id="{{ student[0] }}">
+                <p> {{ student[1] }} | {{ student[2] }} уровень</p>
+            </div>
         {% endfor %}
-        <button type="button" id="back-from-rating-btn" onclick="history.back()">Назад</button>
     </div>
+    <button type="button" class="btn btn-logout-rating" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+    <button type="button" class="btn btn-back-rating" onclick="history.back()">Назад</button>
 {% endblock %}
