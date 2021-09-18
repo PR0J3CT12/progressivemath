@@ -18,6 +18,9 @@ data - список учеников в бд:
             </div>
         {% endfor %}
     </div>
-    <button type="button" class="btn btn-logout-rating" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
+    {% if current_user.student_id == 999 %}
+        <button type="button" class="btn back-to-admin-btn from-stats" onclick="location.href='/admin'">Админка</button>
+    {% endif %}
+    <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
     <button type="button" class="btn btn-back-rating" onclick="history.back()">Назад</button>
 {% endblock %}

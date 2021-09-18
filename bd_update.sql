@@ -229,3 +229,19 @@ CREATE OR REPLACE FUNCTION compare_themes(IN current_student_id integer) RETURNS
 	SELECT get_themes_score.theme, grade, others_grade FROM get_themes_score(current_student_id)
 	JOIN (SELECT * FROM get_themes_score_others(current_student_id)) AS other_students ON work_id = others_work_id
 $$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_sum_homeworks_score;
+CREATE OR REPLACE FUNCTION get_sum_homeworks_score(IN current_student_id integer, OUT current_max_score bigint, OUT current_score bigint) AS $$
+	SELECT SUM(max_score), SUM(score) FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE fk_student_id = current_student_id and is_homework = 'True'
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_sum_classworks_score;
+CREATE OR REPLACE FUNCTION get_sum_classworks_score(IN current_student_id integer, OUT current_max_score bigint, OUT current_score bigint) AS $$
+	SELECT SUM(max_score), SUM(score) FROM total_grades
+	JOIN works ON fk_work_id = work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE fk_student_id = current_student_id and is_homework = 'False'
+$$ LANGUAGE SQL;

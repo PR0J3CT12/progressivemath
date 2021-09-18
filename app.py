@@ -1,16 +1,18 @@
 import flask
-from flask import Flask, render_template, url_for, request, redirect, flash, jsonify
+from flask import Flask, render_template, url_for, request, redirect, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, fresh_login_required, current_user
-from flask_cors import CORS, cross_origin
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, current_user
+from flask_cors import CORS
 import json
 import os
-from data_reciever import functions
+from functions import db_connection, split_grades_themes, mana_give_function, db_update_total_grades, db_update_students, db_update_works_info, wait
 from werkzeug.security import check_password_hash
-import glob
+from transliterate import translit
+import threading
 
-
-with open('secret/secret.json', 'r') as f:
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SECRET_FILE = os.path.join(BASE_DIR, 'secret/secret.json')
+with open(SECRET_FILE, 'r') as f:
     secret_data = json.load(f)
 app = Flask(__name__)
 cors = CORS(app)
@@ -23,7 +25,6 @@ db_port = secret_data['db_port']
 db_name = secret_data['db_name']
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 login_manager = LoginManager(app)
 db = SQLAlchemy(app)
 
@@ -88,7 +89,7 @@ def redirect_to_sign_in(response):
 @login_required
 def student_page(pid):
     if pid == current_user.student_id or current_user.student_id == 999:
-        connection, cursor = functions.db_connection()
+        connection, cursor = db_connection()
         cursor.execute('SELECT student_id, student_name FROM students WHERE student_id = %s', (pid,))
         record = cursor.fetchall()[0]
         current_student_id = record[0]
@@ -127,43 +128,25 @@ def student():
 @app.route('/stats/<int:pid>')
 @login_required
 def stats_page(pid):
-    gid = flask.request.url
-    if os.path.isfile(f'static/exam_graph_{pid}.png'):
-        os.remove(f'static/exam_graph_{pid}.png')
-    if os.path.isfile(f'static/exam_graph_speaking_{pid}.png'):
-        os.remove(f'static/exam_graph_speaking_{pid}.png')
-    if 'gid' in gid:
-        graph_id = int(gid.split('gid=')[1])
+    gid_tmp = flask.request.url
+    if 'gid=' in gid_tmp:
+        gid = int(gid_tmp.split('gid=')[1])
     else:
-        graph_id = 0
+        gid = 0
     if pid == current_user.student_id or current_user.student_id == 999:
-        connection, cursor = functions.db_connection()
+        connection, cursor = db_connection()
         cursor.execute('SELECT student_name FROM students WHERE student_id = %s', (pid,))
         current_student_name = cursor.fetchall()[0][0]
-        cursor.execute('SELECT * FROM get_current_homework_progress(%s)', (pid,))
-        current_student_homework_progress = cursor.fetchall()[0][0]
-        cursor.execute('SELECT * FROM get_current_classwork_progress(%s)', (pid,))
-        current_student_classwork_progress = cursor.fetchall()[0][0]
-        cursor.execute('SELECT * FROM get_homeworks_progress_others(%s)', (pid,))
-        others_homework_progress = cursor.fetchall()[0][0]
-        cursor.execute('SELECT * FROM get_classworks_progress_others(%s)', (pid,))
-        others_classwork_progress = cursor.fetchall()[0][0]
         cursor.execute('SELECT * FROM comparing_last_homework(%s)', (pid,))
         last_homework_others = cursor.fetchall()[0][0]
         cursor.execute('SELECT * FROM get_last_homework_score(%s)', (pid,))
         last_homework = cursor.fetchall()[0][0]
-        cursor.execute('SELECT * FROM comparing_last_classwork(%s)', (pid,))
-        last_classwork_others = cursor.fetchall()[0][0]
-        cursor.execute('SELECT * FROM get_last_classwork_score(%s)', (pid,))
-        last_classwork = cursor.fetchall()[0][0]
         cursor.execute('SELECT * FROM get_themes(%s)', (pid,))
         record = cursor.fetchall()
         themes = []
         for theme in record:
             cur_theme = theme[0][:-3]
             themes.append(cur_theme)
-            if os.path.isfile(f'static/all_graphs_{cur_theme}_{pid}.png'):
-                os.remove(f'static/all_graphs_{cur_theme}_{pid}.png')
         cursor.execute('SELECT * FROM compare_exams(%s)', (pid,))
         exam_grades = cursor.fetchall()
         exam_grade_needed = 9
@@ -179,36 +162,93 @@ def stats_page(pid):
             exam_speaking = False
         cursor.execute("SELECT * FROM compare_themes(%s)", (pid,))
         themes_grades = cursor.fetchall()
-        data = [current_student_name, current_student_homework_progress, current_student_classwork_progress, others_homework_progress, others_classwork_progress, last_homework, last_homework_others, last_classwork, last_classwork_others, themes, exam_grades, exam_grade_needed, exam_grades_speaking, themes_grades]
-        if graph_id == 1:
-            themes_dict = functions.split_grades_themes(themes_grades)
+        grade_limit = []
+        labels = []
+        theme = ''
+        tmp_1 = []
+        tmp_2 = []
+        if gid == 1:
             theme = 'Площадь'
-            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
-        elif graph_id == 2:
-            themes_dict = functions.split_grades_themes(themes_grades)
+            for el in themes_grades:
+                if el[0] == theme:
+                    tmp_1.append(el[1])
+                    tmp_2.append(el[2])
+            labels = []
+            for i in range(1, len(tmp_1) + 1):
+                labels.append(str(i))
+            if len(labels) == 1:
+                labels.append("2")
+        elif gid == 2:
             theme = 'Части'
-            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
-        elif graph_id == 3:
-            themes_dict = functions.split_grades_themes(themes_grades)
+            for el in themes_grades:
+                if el[0] == theme:
+                    tmp_1.append(el[1])
+                    tmp_2.append(el[2])
+            labels = []
+            for i in range(1, len(tmp_1) + 1):
+                labels.append(str(i))
+            if len(labels) == 1:
+                labels.append("2")
+        elif gid == 3:
             theme = 'Движение'
-            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
-        elif graph_id == 4:
-            themes_dict = functions.split_grades_themes(themes_grades)
+            for el in themes_grades:
+                if el[0] == theme:
+                    tmp_1.append(el[1])
+                    tmp_2.append(el[2])
+            labels = []
+            for i in range(1, len(tmp_1) + 1):
+                labels.append(str(i))
+            if len(labels) == 1:
+                labels.append("2")
+        elif gid == 4:
             theme = 'Совместная работа'
-            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
-        elif graph_id == 5:
-            themes_dict = functions.split_grades_themes(themes_grades)
+            for el in themes_grades:
+                if el[0] == theme:
+                    tmp_1.append(el[1])
+                    tmp_2.append(el[2])
+            labels = []
+            for i in range(1, len(tmp_1) + 1):
+                labels.append(str(i))
+            if len(labels) == 1:
+                labels.append("2")
+        elif gid == 5:
             theme = 'Обратный ход'
-            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
-        elif graph_id == 6:
-            themes_dict = functions.split_grades_themes(themes_grades)
+            for el in themes_grades:
+                if el[0] == theme:
+                    tmp_1.append(el[1])
+                    tmp_2.append(el[2])
+            labels = []
+            for i in range(1, len(tmp_1) + 1):
+                labels.append(str(i))
+            if len(labels) == 1:
+                labels.append("2")
+        elif gid == 6:
             theme = 'Головы и ноги'
-            functions.all_graphs(current_student_name, themes_dict[theme], theme, pid)
-        elif graph_id == 7:
-            functions.exam_graph(current_student_name, exam_grades, pid, exam_grade_needed)
-        elif graph_id == 8:
-            functions.exam_graph_speaking(current_student_name, exam_grades_speaking, pid)
-        return render_template("stats_page.html", data=data, pid=pid, gid=graph_id, ex=exam, ex_s=exam_speaking)
+            for el in themes_grades:
+                if el[0] == theme:
+                    tmp_1.append(el[1])
+                    tmp_2.append(el[2])
+            labels = []
+            for i in range(1, len(tmp_1) + 2):
+                labels.append(str(i))
+            if len(labels) == 1:
+                labels.append("2")
+        elif gid == 7:
+            theme = 'Письменный экзамен'
+            for el in exam_grades:
+                tmp_1.append(el[0])
+                tmp_2.append(el[1])
+            grade_limit = [exam_grade_needed] * len(tmp_1)
+        elif gid == 8:
+            theme = 'Устный экзамен'
+            for el in exam_grades:
+                tmp_1.append(el[0])
+                tmp_2.append(el[1])
+            grade_limit = [exam_grade_needed] * len(tmp_1)
+        data = [int(last_homework), int(last_homework_others)]
+        cursor.close()
+        connection.close()
+        return render_template("stats_page.html", data=data, name=current_student_name, pid=pid, gid=gid, ex=exam, ex_s=exam_speaking, themes=themes, labels=labels, grade_limit=grade_limit, current=tmp_1, others=tmp_2, theme=theme)
     else:
         return redirect(url_for('stats_page', pid=current_user.student_id))
 
@@ -240,7 +280,7 @@ def stats():
 @login_required
 def admin():
     if current_user.student_id == 999:
-        connection, cursor = functions.db_connection()
+        connection, cursor = db_connection()
         cursor.execute('SELECT * FROM waiting_for_mana()')
         waiters_for_mana = cursor.fetchall()
         cursor.execute('SELECT student_id, student_name FROM students WHERE student_id < 999 ORDER BY student_id;')
@@ -257,8 +297,8 @@ def admin():
 def mana_give(pid):
     if current_user.is_authenticated:
         if current_user.student_id == 999:
-            functions.mana_give(pid)
-            return redirect('/admin')
+            mana_give_function(pid)
+            return redirect('/login')
         else:
             return redirect('/login')
     else:
@@ -270,7 +310,7 @@ def mana_give(pid):
 def rating():
     if current_user.is_authenticated:
         current_id = current_user.student_id
-        connection, cursor = functions.db_connection()
+        connection, cursor = db_connection()
         cursor.execute("SELECT student_id, student_name, homework_lvl FROM students WHERE student_id < 999 ORDER BY homework_lvl DESC;")
         ratings = cursor.fetchall()
         cursor.close()
@@ -286,17 +326,16 @@ def db_operation(p_name):
     if current_user.is_authenticated:
         if current_user.student_id == 999:
             if p_name == 'update_grades':
-                functions.db_update_total_grades()
+                threading.Thread(target=db_update_total_grades).start()
             elif p_name == 'add_students':
-                functions.db_update_students()
+                db_update_students()
             elif p_name == 'restart_students':
-                connection, cursor = functions.db_connection()
-                cursor.execute('DELETE FROM students WHERE student_id < 999; ALTER SEQUENCE seq_student_id RESTART WITH 1; COMMIT;')
-                functions.db_update_students()
+                connection, cursor = db_connection()
+                cursor.execute("TRUNCATE total_grades; DELETE FROM students WHERE student_id < 999; ALTER SEQUENCE seq_student_id RESTART WITH 1; COMMIT;")
                 connection.close()
                 cursor.close()
             elif p_name == 'update_works':
-                functions.db_update_works_info()
+                db_update_works_info()
             return redirect('/admin')
         else:
             return redirect('/login')

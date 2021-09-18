@@ -1,4 +1,6 @@
 # coding: utf-8
+import threading
+import time
 from collections import defaultdict
 from random import randint
 from transliterate import translit
@@ -17,12 +19,17 @@ from email import encoders
 from platform import python_version
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from PIL import Image, ImageDraw, ImageFont
 
 
-with open('secret/secret.json', 'r') as f:
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SECRET_FILE = os.path.join(BASE_DIR, 'secret/secret.json')
+PASSWORDS_FILE = os.path.join(BASE_DIR, 'secret/passwords.txt')
+STATIC_DIR = os.path.join(BASE_DIR, 'static/')
+FONT = os.path.join(STATIC_DIR, 'font.ttf')
+with open(SECRET_FILE, 'r') as f:
     secret_data = json.load(f)
 scheduler = BlockingScheduler()
+SPREADSHEET_ID_TEST = '1QMzDbyOHjA1qW1WrH99pIRuuvR7IFyrPifAbQXWUMb4'
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
                'Движение класс', 'Движение дз', 'Совместная работа класс', 'Совместная работа дз',
@@ -37,7 +44,7 @@ def service_function():
     """
     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, '../secret/credentials.json')
+    SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'secret/credentials.json')
     credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     service = build('sheets', 'v4', credentials=credentials).spreadsheets().values()
     return service
@@ -113,14 +120,17 @@ def admin_creator():
     connection, cursor = db_connection()
     hash_my = generate_password_hash(secret_data["admin_password"])
     cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
+    if connection:
+        cursor.close()
+        connection.close()
 
 
 def db_update_students():
     """
     Функция для обновления таблицы students
     """
-    if os.path.isfile('secret/passwords.txt'):
-        os.remove('secret/passwords.txt')
+    if os.path.isfile(PASSWORDS_FILE):
+        os.remove(PASSWORDS_FILE)
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
@@ -128,6 +138,7 @@ def db_update_students():
     used_rows = cursor.fetchall()
     students_amount = len(service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:A50').execute()['values'])
     jump = False
+    values = ()
     for i in range(0, students_amount):
         row = i + 4
         for j in range(len(used_rows)):
@@ -139,11 +150,20 @@ def db_update_students():
             continue
         student_name = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A{row}:A{row}').execute()['values'][0][0]
         info = login_password_creator(student_name, row)
-        with open('secret/passwords.txt', 'a+') as ff:
-            ff.write(info[0] + ' | ' + info[1] + ' | ' + info[2] + '\n')
-        cursor.execute(
-            "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES (%s, %s, %s, %s); COMMIT",
-            (student_name, info[1], info[3], row))
+        string = info[0] + u' | ' + info[1] + u' | ' + info[2] + u'\n'
+        with open(PASSWORDS_FILE, 'a+', encoding='utf-8') as ff:
+            ff.write(string)
+        current_tuple = (student_name, info[1], info[3], row)
+        values += current_tuple
+    execute_tmp = ''
+    execute_string = "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES"
+    execute_string_perc = "(%s, %s, %s, %s)"
+    for j in range(students_amount - 1):
+        execute_tmp += execute_string_perc + ', '
+    execute_tmp += execute_string_perc + '; '
+    execute_string += execute_tmp + 'COMMIT;'
+    if values:
+        cursor.execute(execute_string, values)
     cursor.execute("SELECT * FROM students WHERE student_id=999;")
     admin_tmp = cursor.fetchall()
     if len(admin_tmp) == 0:
@@ -151,11 +171,11 @@ def db_update_students():
     if connection:
         cursor.close()
         connection.close()
-        if os.path.isfile('secret/passwords.txt'):
-            with open('secret/passwords.txt', 'r') as ff:
+        if os.path.isfile(PASSWORDS_FILE):
+            with open(PASSWORDS_FILE, 'r', encoding='utf-8') as ff:
                 x = ff.readlines()
                 if len(x) != 0:
-                    send_email('secret/passwords.txt')
+                    send_email(PASSWORDS_FILE)
     else:
         raise Exception('Cant connect to db')
 
@@ -167,7 +187,7 @@ def info_creator(sheet_name):
     P.S. список учеников(ученик = словарь с результатами по каждой работе на листе
     """
     connection, cursor = db_connection()
-    cursor.execute("SELECT student_id FROM students WHERE student_id<999")
+    cursor.execute("SELECT student_id FROM students")
     number_of_students = len(cursor.fetchall())
     cursor.execute("SELECT work_name FROM works WHERE sheet_name = %s", (sheet_name,))
     works_names = cursor.fetchall()
@@ -178,14 +198,16 @@ def info_creator(sheet_name):
     for i in range(len(data)):
         data[i] = data[i][4:]
         for j in range(len(data[i])):
+            if ',' in data[i][j]:
+                data[i][j] = data[i][j].replace(',', '.')
             if data[i][j] == '' or '-':
                 pass
             else:
-                data[i][j] = int(data[i][j])
+                data[i][j] = float(data[i][j])
     for student in data:
         is_last_classwork = False
         is_last_homework = False
-        current_student_dict = defaultdict(list)
+        current_student_dict = {}
         for i in range(len(all_borders)):
             list_of_grades = student[all_borders[i][0]:all_borders[i][1] + 1]
             cur_string = ''
@@ -213,12 +235,12 @@ def total_info_creator():
     for i in range(1, len(sheet_names)):
         current_sheet_students = info_creator(sheet_names[i])
         for j in range(len(current_sheet_students)):
-            total_student_information[j] = total_student_information[j] | current_sheet_students[j]
-    for j in total_student_information:
-        if not j['Последняя домашняя работа']:
-            j['Последняя домашняя работа'] = 'Домашнее задание №1'
-        if not j['Последняя классная работа']:
-            j['Последняя классная работа'] = 'Классная работа №1'
+            total_student_information[j] = {**total_student_information[j], **current_sheet_students[j]}
+    for el in total_student_information:
+        if 'Последняя классная работа' not in el:
+            el['Последняя классная работа'] = 'Классная работа №1'
+        if 'Последняя домашняя работа' not in el:
+            el['Последняя домашняя работа'] = 'Домашнее задание №1'
     return total_student_information
 
 
@@ -281,9 +303,12 @@ def db_update_works_info():
             works_info.append([work_name, sheet_name, to_string, is_homework])
         for j in range(len(works_info)):
             cursor.execute("INSERT INTO works(work_name, sheet_name, grades_string, is_homework) VALUES (%s, %s, %s, %s); COMMIT", (works_info[j][0], works_info[j][1], works_info[j][2], works_info[j][3]))
+    if connection:
+        cursor.close()
+        connection.close()
 
 
-def mana_give(student_id):
+def mana_give_function(student_id):
     """
     Функция для выдачи маны ученику с id = student_id
     На вход student_id
@@ -292,6 +317,9 @@ def mana_give(student_id):
     cursor.execute("SELECT SUM(mana) FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True';", (student_id,))
     mana = cursor.fetchall()[0][0]
     cursor.execute("UPDATE students SET mana_earned = %s WHERE student_id = %s; COMMIT;", (mana, student_id))
+    if connection:
+        cursor.close()
+        connection.close()
 
 
 def lvl_update(student_id):
@@ -354,6 +382,9 @@ def lvl_update(student_id):
         homework_lvl = 12
     cursor.execute("UPDATE students SET homework_lvl = %s WHERE student_id = %s; COMMIT;", (homework_lvl, student_id))
     cursor.execute("UPDATE students SET classwork_lvl = %s WHERE student_id = %s; COMMIT;", (classwork_lvl, student_id))
+    if connection:
+        cursor.close()
+        connection.close()
 
 
 @scheduler.scheduled_job(IntervalTrigger(minutes=3))
@@ -361,55 +392,71 @@ def db_update_total_grades():
     """
     Функция для перезаписи таблицы total_grades
     """
+    print('db start:', threading.currentThread().name)
+    start = time.time()
     connection, cursor = db_connection()
-    cursor.execute("TRUNCATE TABLE total_grades;")
-    cursor.execute("SELECT student_id, student_row FROM students WHERE student_id < 999;")
+    cursor.execute("TRUNCATE TABLE total_grades; SELECT student_id, student_row FROM students WHERE student_id < 999;")
     students = cursor.fetchall()
     results = total_info_creator()
+    cursor.execute("SELECT work_id, work_name FROM works;")
+    record = cursor.fetchall()
+    cursor.execute("SELECT grades_string FROM works;")
+    grades_strings = cursor.fetchall()
+    values = ()
     for student in students:
         current_student_id = student[0]
         current_student_row = student[1]
-        cursor.execute("SELECT work_id, work_name FROM works;")
-        record = cursor.fetchall()
         current_student_results = results[current_student_row - 4]
         for work in record:
             current_work_name = work[1]
             current_work_id = work[0]
             current_last_homework = current_student_results['Последняя домашняя работа']
+            current_last_classwork = current_student_results['Последняя классная работа']
             cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_homework,))
             current_last_homework_id = cursor.fetchall()[0][0]
-            cursor.execute("UPDATE students SET last_homework_id = %s WHERE student_id = %s; COMMIT;", (current_last_homework_id, current_student_id))
-            current_last_classwork = current_student_results['Последняя классная работа']
             cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_classwork,))
             current_last_classwork_id = cursor.fetchall()[0][0]
-            cursor.execute("UPDATE students SET last_classwork_id = %s WHERE student_id = %s; COMMIT;", (current_last_classwork_id, current_student_id))
+            cursor.execute("UPDATE students SET last_homework_id = %s WHERE student_id = %s; UPDATE students SET last_classwork_id = %s WHERE student_id = %s; COMMIT;", (current_last_homework_id, current_student_id, current_last_classwork_id, current_student_id))
             current_work_grades_list = current_student_results[current_work_name]
-            cursor.execute("SELECT grades_string FROM works;")
-            grades_strings = cursor.fetchall()
             current_work_grade_string = grades_strings[current_work_id - 1][0].split(' ')
             current_work_grade = 0
             current_exercises = 0
             current_max_score = 0
             for j in current_work_grade_string:
-                if int(j) == 0:
+                if float(j) == 0:
                     current_exercises += 0
                     current_max_score += 0
                 else:
                     current_exercises += 1
-                    current_max_score += int(j)
+                    current_max_score += float(j)
             for i in range(len(current_work_grades_list)):
                 if current_work_grades_list[i] == '':
                     current_work_grade += 0
                 elif current_work_grades_list[i] == '-':
-                    current_max_score -= int(current_work_grade_string[i])
+                    current_max_score -= float(current_work_grade_string[i])
                     current_exercises -= 1
                 else:
-                    current_work_grade += int(current_work_grades_list[i])
-            cursor.execute("INSERT INTO total_grades(fk_student_id, fk_work_id, score, max_score, exercises) VALUES (%s, %s, %s, %s, %s); COMMIT", (current_student_id, current_work_id, current_work_grade, current_max_score, current_exercises))
+                    current_work_grade += float(current_work_grades_list[i])
+            current_tuple = (current_student_id, current_work_id, current_work_grade, current_max_score, current_exercises)
+            values += current_tuple
+    execute_tmp = ''
+    execute_string = "INSERT INTO total_grades(fk_student_id, fk_work_id, score, max_score, exercises) VALUES"
+    execute_string_perc = "(%s, %s, %s, %s, %s)"
+    tries = len(record) * len(students)
+    for j in range(tries - 1):
+        execute_tmp += execute_string_perc + ', '
+    execute_tmp += execute_string_perc + '; '
+    execute_string += execute_tmp + 'COMMIT;'
+    if values:
+        cursor.execute(execute_string, values)
+    for student in students:
+        current_student_id = student[0]
+        for work in record:
+            current_work_id = work[0]
             cursor.execute("SELECT * FROM get_current_homework_score(%s, %s)", (current_student_id, current_work_id))
             tmp_var = cursor.fetchall()[0][0]
             if tmp_var is not None:
-                percentage = int(tmp_var)
+                percentage = float(tmp_var)
                 if 0 < percentage <= 25:
                     mana = 1
                 elif 25 < percentage <= 50:
@@ -422,116 +469,10 @@ def db_update_total_grades():
                     mana = 0
                 cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s; COMMIT;", (mana, current_student_id, current_work_id))
         lvl_update(current_student_id)
-
-
-def exam_graph(name, grades_list, pid, minimum_grade=9):
-    font = ImageFont.truetype("static/font.ttf", 40)
-    title_font = ImageFont.truetype("static/font.ttf", 70)
-    digits_font = ImageFont.truetype("static/font.ttf", 30)
-    color_current = (125, 175, 255)
-    color_others = (255, 120, 40)
-    sq_size = 50
-    y = 20
-    x = 36
-    img_height = (y + 6) * sq_size
-    img_width = (x + 6) * sq_size
-    im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
-    draw = ImageDraw.Draw(im)
-    draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
-    draw.line(((0, 0), (img_width, 0)), (170, 170, 170), width=1)
-    draw.line(((img_width, 0), (img_width, img_height)), (170, 170, 170), width=3)
-    draw.line(((0, img_height), (img_width, img_height)), (170, 170, 170), width=3)
-    draw.rectangle((sq_size * 3, sq_size * 3, img_width - sq_size * 3, img_height - sq_size * 3), (245, 245, 245))
-    draw.line((sq_size * 3, img_height - sq_size * (3 + minimum_grade), img_width - sq_size * 3, img_height - sq_size * (3 + minimum_grade)), (155, 155, 155), width=1)
-    draw.text((img_width // 2, img_height - sq_size * (minimum_grade + 3)), "проходной балл", (155, 155, 155), font=font, anchor='mt')
-    draw.line(((sq_size * 3, sq_size * 3), (sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((sq_size * 3, sq_size * 3), (img_width - sq_size * 3, sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((img_width - sq_size * 3, sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((sq_size * 3, img_height - sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    digit = 18
-    for i in range(0, 19):
-        draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (4 + i) + sq_size * (6 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
-        digit -= 1
-    dots_others = []
-    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][1])
-        draw.ellipse((sq_size * (column - 0.25), sq_size * ((img_height//sq_size - 3) - grade - 0.25), sq_size * (column + 0.25), sq_size * ((img_height//sq_size - 3) - grade + 0.25)), fill=color_others)
-        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade)])
-        column += x / len(grades_list)
-    if len(dots_others) > 1:
-        for i in range(len(dots_others) - 1):
-            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=10)
-    dots_current = []
-    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][0])
-        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade + 0.15)), fill=color_current)
-        dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
-        column += x / len(grades_list)
-    if len(dots_current) > 1:
-        for i in range(len(dots_current) - 1):
-            draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
-    draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
-    draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
-    draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
-    draw.ellipse(((img_width // 2 + img_width - sq_size * 3) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (img_width // 2 + img_width - sq_size * 3) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_others)
-    draw.text((img_width // 2, sq_size * 3 // 2), "Письменный экзамен", "black", font=title_font, anchor='mm')
-    im.save(f'static/exam_graph_{pid}.png')
-
-
-def exam_graph_speaking(name, grades_list, pid):
-    font = ImageFont.truetype("static/font.ttf", 40)
-    title_font = ImageFont.truetype("static/font.ttf", 70)
-    digits_font = ImageFont.truetype("static/font.ttf", 30)
-    color_current = (125, 175, 255)
-    color_others = (255, 120, 40)
-    y = 20
-    x = 36
-    sq_size = 50
-    img_height = (y + 6) * sq_size
-    img_width = (x + 6) * sq_size
-    im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
-    draw = ImageDraw.Draw(im)
-    draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
-    draw.line(((0, 0), (img_width, 0)), (170, 170, 170), width=1)
-    draw.line(((img_width, 0), (img_width, img_height)), (170, 170, 170), width=3)
-    draw.line(((0, img_height), (img_width, img_height)), (170, 170, 170), width=3)
-    draw.rectangle((sq_size * 3, sq_size * 3, img_width - sq_size * 3, img_height - sq_size * 3), (245, 245, 245))
-    draw.line(((sq_size * 3, sq_size * 3), (sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((sq_size * 3, sq_size * 3), (img_width - sq_size * 3, sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((img_width - sq_size * 3, sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((sq_size * 3, img_height - sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    digit = 18
-    for i in range(0, 19):
-        draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (4 + i) + sq_size * (6 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
-        digit -= 1
-    dots_others = []
-    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][1])
-        draw.ellipse((sq_size * (column - 0.25), sq_size * ((img_height // sq_size - 3) - grade - 0.25), sq_size * (column + 0.25), sq_size * ((img_height // sq_size - 3) - grade + 0.25)), fill=color_others)
-        dots_others.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
-        column += x / len(grades_list)
-    if len(dots_others) > 1:
-        for i in range(len(dots_others) - 1):
-            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=10)
-    dots_current = []
-    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][0])
-        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade + 0.15)), fill=color_current)
-        dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade)])
-        column += x / len(grades_list)
-    if len(dots_current) > 1:
-        for i in range(len(dots_current) - 1):
-            draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
-    draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
-    draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
-    draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
-    draw.ellipse(((img_width // 2 + img_width - sq_size * 3) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (img_width // 2 + img_width - sq_size * 3) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_others)
-    draw.text((img_width // 2, sq_size * 3 // 2), "Устный экзамен", "black", font=title_font, anchor='mm')
-    im.save(f'static/exam_graph_speaking_{pid}.png')
+    if connection:
+        cursor.close()
+        connection.close()
+    print('db end:', time.time() - start)
 
 
 def split_grades_themes(themes_grades_list):
@@ -542,58 +483,13 @@ def split_grades_themes(themes_grades_list):
     return grades
 
 
-def all_graphs(name, grades_list, theme, pid):
-    font = ImageFont.truetype("static/font.ttf", 40)
-    title_font = ImageFont.truetype("static/font.ttf", 70)
-    digits_font = ImageFont.truetype("static/font.ttf", 30)
-    color_current = (125, 175, 255)
-    color_others = (255, 120, 40)
-    sq_size = 50
-    y = 20
-    x = 36
-    img_height = (y + 6) * sq_size
-    img_width = (x + 6) * sq_size
-    im = Image.new("RGBA", (img_width, img_height), (255, 255, 255))
-    draw = ImageDraw.Draw(im)
-    draw.line(((0, 0), (0, img_height)), (170, 170, 170), width=1)
-    draw.line(((0, 0), (img_width, 0)), (170, 170, 170), width=1)
-    draw.line(((img_width, 0), (img_width, img_height)), (170, 170, 170), width=3)
-    draw.line(((0, img_height), (img_width, img_height)), (170, 170, 170), width=3)
-    draw.rectangle((sq_size * 3, sq_size * 3, img_width - sq_size * 3, img_height - sq_size * 3), (245, 245, 245))
-    draw.line(((sq_size * 3, sq_size * 3), (sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((sq_size * 3, sq_size * 3), (img_width - sq_size * 3, sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((img_width - sq_size * 3, sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    draw.line(((sq_size * 3, img_height - sq_size * 3), (img_width - sq_size * 3, img_height - sq_size * 3)), (170, 170, 170), width=1)
-    digit = 100
-    for i in range(0, 21):
-        draw.text(((sq_size * 2 + sq_size * 3) // 2, (sq_size * (2 + i) + sq_size * (4 + i)) // 2), f'{digit}', "black", font=digits_font, anchor='mm')
-        digit -= 5
-    dots_others = []
-    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][1])
-        draw.ellipse((sq_size * (column - 0.25), sq_size * ((img_height//sq_size - 3) - grade / 5 - 0.25), sq_size * (column + 0.25), sq_size * ((img_height//sq_size - 3) - grade / 5 + 0.25)), fill=color_others)
-        dots_others.append([sq_size * column, sq_size * ((img_height//sq_size - 3) - grade / 5)])
-        column += x / len(grades_list)
-    if len(dots_others) > 1:
-        for i in range(len(dots_others) - 1):
-            draw.line((dots_others[i][0], dots_others[i][1], dots_others[i + 1][0], dots_others[i + 1][1]), color_others, width=10)
-    dots_current = []
-    column = (x - (x / len(grades_list) * (len(grades_list) - 1)))/2 + 3
-    for i in range(len(grades_list)):
-        grade = int(grades_list[i][0])
-        draw.ellipse((sq_size * (column - 0.15), sq_size * ((img_height // sq_size - 3) - grade / 5 - 0.15), sq_size * (column + 0.15), sq_size * ((img_height // sq_size - 3) - grade / 5 + 0.125)), fill=color_current)
-        dots_current.append([sq_size * column, sq_size * ((img_height // sq_size - 3) - grade / 5)])
-        column += x / len(grades_list)
-    if len(dots_current) > 1:
-        for i in range(len(dots_current) - 1):
-            draw.line((dots_current[i][0], dots_current[i][1], dots_current[i + 1][0], dots_current[i + 1][1]), color_current, width=6)
-    draw.text(((sq_size * 3 + img_width // 2) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), name, "black", font=font, anchor='mm')
-    draw.text(((img_width // 2 + img_width - sq_size * 3) // 2, ((img_height - sq_size * 3) + (img_height - sq_size)) // 2), "Остальные учащиеся", "black", font=font, anchor='mm')
-    draw.ellipse(((sq_size * 3 + (img_width // 2)) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (sq_size * 3 + (img_width // 2)) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_current)
-    draw.ellipse(((img_width // 2 + img_width - sq_size * 3) // 2 - 0.25 * sq_size, img_height - sq_size - 0.25 * sq_size, (img_width // 2 + img_width - sq_size * 3) // 2 + 0.25 * sq_size, img_height - sq_size + 0.25 * sq_size), fill=color_others)
-    draw.text((img_width // 2, sq_size * 3 // 2), theme, "black", font=title_font, anchor='mm')
-    im.save(f'static/all_graphs_{theme}_{pid}.png')
+def wait():
+    print('start')
+    start = time.time()
+    time.sleep(5)
+    timee = time.time() - start
+    print('finish', timee)
+    print(threading.currentThread().name)
 
 
 if __name__ == '__main__':

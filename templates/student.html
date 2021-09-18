@@ -15,53 +15,51 @@ data[8] - id ученика
 -->
 {% block body %}
     <div>
-        <h1>{{ data[7] }}</h1>
-        <div>
-            <p>Текущий прогресс домашних работ</p>
+        <h1 class="h1_name">{{ data[7] }}</h1>
+        <div class="box_above"><div class="box_with_progress">
             <div class="progress">
                 <progress id="progress1" max="100" value={{ data[0] }}></progress>
                 <div class="progress-value"></div>
                 <div class="progress-bg"><div class="progress-bar"></div></div>
+                <p>Текущий прогресс домашних работ</p>
             </div>
-        </div>
-        <div>
-            <p>Текущий прогресс классных работ</p>
+        </div></div>
+        <div class="box_above"><div class="box_with_progress">
             <div class="progress">
                 <progress id="progress2" max="100" value={{ data[1] }}></progress>
                 <div class="progress-value"></div>
                 <div class="progress-bg"><div class="progress-bar"></div></div>
+                <p>Текущий прогресс классных работ</p>
             </div>
-        </div>
-        <div>
-            <p>Результат последней домашней работы</p>
+        </div></div>
+        <div class="box_above"><div class="box_with_progress">
             <div class="progress">
                 <progress id="progress3" max="100" value={{ data[2] }}></progress>
                 <div class="progress-value"></div>
                 <div class="progress-bg"><div class="progress-bar"></div></div>
+                <p>Результат последней домашней работы</p>
             </div>
-        </div>
-        <div>
-            <p>Результат последней классной работы</p>
+        </div></div>
+        <div class="box_above"><div class="box_with_progress">
             <div class="progress">
                 <progress max="100" value={{ data[3] }}></progress>
                 <div class="progress-value"></div>
                 <div class="progress-bg"><div class="progress-bar"></div></div>
+                <p>Результат последней классной работы</p>
             </div>
-        </div>
+        </div></div>
         <div>
             <p>Уровень: {{ data[4] }}</p>
         </div>
         <div>
-            <p>Мана: {{ data[6] }}</p>
+            <p id="last_p">Мана: {{ data[6] }}</p>
         </div>
-        <div>
-            <button type="button" id="more-btn" onclick="location.href=`/stats/{{ data[8] }}`">Подробная статистика</button>
-        </div>
-        <div>
-            <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
-            <button type="button" id="rating-btn" onclick="location.href='/rating'">Рейтинг</button>
+        <div class="student_buttons_box">
+            <p class="but_p"><button type="button" class="btn btn-more" onclick="location.href=`/stats/{{ data[8] }}`">Подробная статистика</button></p>
+            <p class="but_p"><button type="button" class="btn btn-rating" onclick="location.href='/rating'">Рейтинг</button></p>
         </div>
     </div>
+    <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
     {% if current_user.student_id == 999 %}
         <button type="button" class="btn back-to-admin-btn" onclick="location.href='/admin'">Админка</button>
     {% endif %}

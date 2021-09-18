@@ -17,8 +17,8 @@ data - ожидающие ману:
         <h1>Панель администратора</h1>
         <ul>
             <li><a class="menu" type="button" id="update_grades" onclick="get_id(this)">Обновить оценки</a></li>
-            <li><a class="menu" type="button" id="add_students" onclick="get_id(this)">Добавить учеников</a></li>
             <li><a class="menu" type="button" id="update_works" onclick="get_id(this)">Обновить работы</a></li>
+            <li><a class="menu" type="button" id="add_students" onclick="get_id(this)">Добавить учеников</a></li>
             <li><a class="menu" type="button" id="restart_students" onclick="get_id(this)">Удалить учеников</a></li>
             <li><a class="menu" type="button" id="rating-btn" onclick="location.href='/rating'">Рейтинг</a></li>
             <script>
@@ -48,12 +48,7 @@ data - ожидающие ману:
                         <div class="mana_box">
                             <p>{{ student[1] }}</p>
                             <p>{{ student[3] - student[2] }} маны</p>
-                            <button class="give_btn" id="{{ student[0] }}" onclick="get_id_mana(this)">Выдать ману</button>
-                            <script>
-                                function get_id_mana(obj) {
-                                    window.location.replace(`/mana_give/${obj.id}`);
-                                }
-                            </script>
+                            <button class="give_btn" id="{{ student[0] }}" onclick="location.href='/mana_give/{{ student[0] }}'">Выдать ману</button>
                         </div>
                     {% endfor %}
                     <div class="space"></div>
@@ -61,6 +56,6 @@ data - ожидающие ману:
                 </div>
             </div>
         </div>
-        <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
     </div>
+    <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
 {% endblock %}
