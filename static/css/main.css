@@ -201,9 +201,25 @@ li {
 }
 
 .current_rating {
-	background: greenyellow;
+	background: #DAF1FF;
 }
 
+.current_rating_box {
+	box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+	padding: 10px 20px 10px;
+	width: 300px;
+	border-radius: 10px;
+	margin-bottom: 10px;
+}
+
+.current_rating_box p {
+    margin: 0px;
+}
+
+.rating_space {
+    height: 100px;
+    width: 100%;
+}
 .btn-logout-rating {
 	position: fixed;
 	bottom: 10px;
@@ -251,7 +267,7 @@ li {
 }
 
 .rating_block {
-	margin-bottom: 35px;
+	margin-bottom: 100px;
 }
 
 .space {
@@ -1028,6 +1044,7 @@ li {
 	background: #0069D1;
 	box-shadow: inset 0 0 0 0 #0069D1;
 	height: 30px;
+	margin-bottom: 100px;
 }
 
 .btn-rating:hover {
@@ -1035,13 +1052,17 @@ li {
 }
 
 .student_buttons_box {
-	position: absolute;
-	left: 40%;
-	width: 20%;
+	display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    left: 0;
+    width: 300px;
+    margin-bottom: 100px;
 }
 
 .but_p{
-	margin: 10px;
+
 }
 
 .btn-more {
@@ -1061,7 +1082,8 @@ li {
 }
 
 #last_p {
-	margin-bottom: 0;
+	margin-top: 10px;
+	margin-bottom: 10px;
 }
 
 .login_post {
@@ -1141,19 +1163,6 @@ li {
 
 .loginpage_button:hover {
 	background-color: #0059b2;
-}
-
-.flash {
-	position: absolute;
-	width: 96%;
-	top: 3.5%;
-	left: 0;
-	font-family: "PT Root UI", sans-serif;
-	color: white;
-	padding: 10px;
-	background: rgba(235, 0, 0, 0.5);
-	font-size: 15px;
-	text-transform: uppercase;
 }
 
 @-webkit-keyframes wawes {
@@ -1247,4 +1256,55 @@ option:disabled {
 
 .from-stats {
 	bottom: 90px;
+}
+
+.btn-back-to-login {
+	text-decoration: none;
+	position: relative;
+	width: 300px;
+	height: 30px;
+	padding: 0.5em 1.5em;
+	border: none;
+	color: #fff;
+	background: #0069D1;
+	box-shadow: inset 0 0 0 0 #0069D1;
+}
+
+.btn-back-to-login:hover {
+  box-shadow: inset 0 0 0 50px #0059B2;
+}
+
+.btn-doc {
+	position: fixed;
+	bottom: 50px;
+	width: 300px;
+	padding: 0.5em 1.5em;
+	border: none;
+	color: #fff;
+	background: #D00000;
+	box-shadow: inset 0 0 0 0 #D00000;
+}
+
+.btn-doc:hover {
+  box-shadow: inset 0 0 0 50px #A90000;
+}
+
+.flash {
+	position: absolute;
+	width: 96%;
+	top: 3.5%;
+	left: 0;
+	font-family: "PT Root UI", sans-serif;
+	color: white;
+	padding: 10px;
+	background: rgba(235, 0, 0, 0.5);
+	font-size: 15px;
+	text-transform: uppercase;
+}
+
+.admin-flash {
+    width: 400px;
+    top: 5px;
+    left: 5px;
+    position: fixed;
 }

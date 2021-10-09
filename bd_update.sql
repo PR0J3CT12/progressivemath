@@ -153,12 +153,12 @@ $$ LANGUAGE SQL;
 
 DROP FUNCTION IF EXISTS comparing_last_classwork;
 CREATE OR REPLACE FUNCTION comparing_last_classwork(IN current_student_id integer, OUT perc double precision) AS $$
-	SELECT * FROM get_last_classwork_others(1, (SELECT last_classwork_id FROM students WHERE student_id = 1))
+	SELECT * FROM get_last_classwork_others(current_student_id, (SELECT last_classwork_id FROM students WHERE student_id = current_student_id))
 $$ LANGUAGE SQL;
 
 DROP FUNCTION IF EXISTS comparing_last_homework;
 CREATE OR REPLACE FUNCTION comparing_last_homework(IN current_student_id integer, OUT perc double precision) AS $$
-	SELECT * FROM get_last_homework_others(1, (SELECT last_homework_id FROM students WHERE student_id = 1))
+	SELECT * FROM get_last_homework_others(current_student_id, (SELECT last_homework_id FROM students WHERE student_id = 1))
 $$ LANGUAGE SQL;
 
 DROP FUNCTION IF EXISTS get_exam_score;
@@ -245,3 +245,103 @@ CREATE OR REPLACE FUNCTION get_sum_classworks_score(IN current_student_id intege
 	JOIN students ON fk_student_id = student_id
 	WHERE fk_student_id = current_student_id and is_homework = 'False'
 $$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS get_all_homeworks_perc;
+CREATE OR REPLACE FUNCTION get_all_homeworks_perc(IN current_student_id integer) RETURNS TABLE(work_id integer, perc double precision) AS $$
+	SELECT work_id, ROUND((CAST(SUM(score) as FLOAT) / CAST(SUM(max_score) as FLOAT))*100::numeric)
+	FROM total_grades
+	JOIN works ON works.work_id = total_grades.fk_work_id
+	JOIN students ON fk_student_id = student_id
+	WHERE total_grades.fk_student_id = current_student_id AND works.is_homework = 'True' AND work_id <= last_homework_id
+	GROUP BY work_id
+	ORDER BY work_id;
+$$ LANGUAGE SQL;
+
+DROP FUNCTION IF EXISTS set_mana;
+CREATE OR REPLACE FUNCTION set_mana(IN current_student_id integer) RETURNS void AS $$
+DECLARE
+    work_id integer;
+	perc double precision;
+	mana_x integer = 0;
+BEGIN
+FOR work_id, perc IN
+    SELECT * FROM get_all_homeworks_perc(current_student_id)
+LOOP
+	IF perc <= 25 THEN
+		mana_x := 1;
+	ELSIF 25 < perc AND perc <= 50 THEN
+		mana_x := 2;
+	ELSIF 50 < perc AND perc <= 75 THEN
+		mana_x := 3;
+	ELSIF 75 < perc AND perc <= 100 THEN
+		mana_x := 4;
+	END IF;
+	UPDATE total_grades SET mana = mana_x WHERE fk_student_id = current_student_id AND fk_work_id = work_id;
+END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS set_mana_everyone;
+CREATE OR REPLACE FUNCTION set_mana_everyone() RETURNS void AS $$
+DECLARE
+    current_student_id integer;
+BEGIN
+FOR current_student_id IN
+    SELECT student_id FROM students WHERE student_id < 999
+LOOP
+	PERFORM set_mana(current_student_id);
+END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS set_lvl;
+CREATE OR REPLACE FUNCTION set_lvl(IN current_student_id integer) RETURNS void AS $$
+DECLARE
+	score integer;
+	lvl integer = 0;
+BEGIN
+FOR score IN
+    SELECT current_score FROM get_sum_homeworks_score(current_student_id)
+LOOP
+	IF score < 50 THEN
+		lvl := 1;
+	ELSIF 50 <= score AND score < 110 THEN
+		lvl := 2;
+	ELSIF 110 <= score AND score < 180 THEN
+		lvl := 3;
+	ELSIF 180 <= score AND score < 260 THEN
+		lvl := 4;
+	ELSIF 260 <= score AND score < 350 THEN
+		lvl := 5;
+	ELSIF 350 <= score AND score < 450 THEN
+		lvl := 6;
+	ELSIF 450 <= score AND score < 560 THEN
+		lvl := 7;
+	ELSIF 560 <= score AND score < 680 THEN
+		lvl := 8;
+	ELSIF 680 <= score AND score < 810 THEN
+		lvl := 9;
+	ELSIF 810 <= score AND score < 950 THEN
+		lvl := 10;
+	ELSIF 950 <= score AND score < 1100 THEN
+		lvl := 11;
+	ELSIF 1100 <= score THEN
+		lvl := 12;
+	END IF;
+	UPDATE students SET homework_lvl = lvl WHERE student_id = current_student_id;
+END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION IF EXISTS set_lvl_everyone;
+CREATE OR REPLACE FUNCTION set_lvl_everyone() RETURNS void AS $$
+DECLARE
+    current_student_id integer;
+BEGIN
+FOR current_student_id IN
+    SELECT student_id FROM students WHERE student_id < 999
+LOOP
+	PERFORM set_lvl(current_student_id);
+END LOOP;
+END;
+$$ LANGUAGE plpgsql;

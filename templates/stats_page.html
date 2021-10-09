@@ -42,7 +42,6 @@ data[3] - Оценки для графика устного экзамена
                 </div>
             </div>
         </div>
-
         <div class="box_graph">
             <div class="sel">
                 <label for="select"></label><select name="select" id="select" onchange="if (this.value) window.location.href = this.value">
@@ -58,37 +57,37 @@ data[3] - Оценки для графика устного экзамена
                 </select>
             </div>
             {% if 7 > gid > 0  %}<div class="graph_container"><canvas id="graph" width="800" height="500"></canvas></div>{% endif %}
-            {% if 8 >= gid >= 7  %}<div class="graph_container"><canvas id="graph_exam" width="800" height="500"></canvas></div>{% endif %}
+            {% if 8 >= gid >= 7 %}<div class="graph_container"><canvas id="graph_exam" width="800" height="500"></canvas></div>{% endif %}
+            {% if gid != 7 %}
             <script>
                 let graph = document.getElementById('graph').getContext('2d');
                 Chart.defaults.global.defaultFontFamily = 'PT Root UI';
                 Chart.defaults.global.defaultFontSize = 18;
                 Chart.defaults.global.defaultFontColor = 'black';
                 const data = {
+                        labels: {{ labels }},
                         datasets: [{
                             fill: false,
                             label: "{{ name }}",
                             data: {{ current }},
                             backgroundColor: "#0069D1",
                             borderColor: "#0069D1",
-                            pointRadius: 4,
-                            borderWidth: 4,
+                            pointRadius: 3,
+                            borderWidth: 3,
                         }, {
                             fill: false,
                             label: "Остальные учащиеся",
                             data: {{ others }},
                             backgroundColor: "#FF7828",
                             borderColor: "#FF7828",
+                            pointRadius: 4,
+                            borderWidth: 5,
                         }]
-                        //, {
-                         //   fill: 'start',
-                         //   label: "Проходной балл",
-                         //   data: {{ grade_limit }},
-                        //}]
                 };
-
                 const options = {
-
+                        elements: {
+                            line: {tension: 0}
+                        },
                         title: {
                             display: false,
                             text: "{{ theme }}",
@@ -100,14 +99,14 @@ data[3] - Оценки для графика устного экзамена
                             labels: {fontColor: "black"}
                         },
                         layout: {
-                            padding: {left: 0, right: 10, bottom: 10, top: 10}
+                            padding: {left: 10, right: 10, bottom: 10, top: 10}
                         },
                         tooltips: {enabled: true},
                         scales: {
                             yAxes: [{
                                 ticks: {
-                                    min: 0,
-                                    stepSize: 10,
+                                    suggestedMin: 0,
+                                    suggestedMax: 100,
                                 }
                             }]
                         }
@@ -120,10 +119,144 @@ data[3] - Оценки для графика устного экзамена
                 };
 
                 let myChart = new Chart(graph, config);
+                </script>
+                {% endif %}
+
+                {% if gid == 7 %}
+                <script>
+                let graph2 = document.getElementById('graph_exam').getContext('2d');
+                Chart.defaults.global.defaultFontFamily = 'PT Root UI';
+                Chart.defaults.global.defaultFontSize = 18;
+                Chart.defaults.global.defaultFontColor = 'black';
+                const data2 = {
+                        labels: {{ labels }},
+                        datasets: [{
+                            fill: 'start',
+                            label: "Проходной балл",
+                            data: {{ grade_limit }},
+                            pointRadius: 0
+                        }, {
+                            fill: false,
+                            label: "{{ name }}",
+                            data: {{ current }},
+                            backgroundColor: "#0069D1",
+                            borderColor: "#0069D1",
+                            pointRadius: 3,
+                            borderWidth: 3,
+                        }, {
+                            fill: false,
+                            label: "Остальные учащиеся",
+                            data: {{ others }},
+                            backgroundColor: "#FF7828",
+                            borderColor: "#FF7828",
+                            pointRadius: 4,
+                            borderWidth: 5,
+                        }]
+                };
+                const options2 = {
+                        elements: {
+                            line: {tension: 0}
+                        },
+                        title: {
+                            display: false,
+                            text: "{{ theme }}",
+                            fontSize: 25
+                        },
+                        legend: {
+                            display: true,
+                            position: "bottom",
+                            labels: {fontColor: "black"}
+                        },
+                        layout: {
+                            padding: {left: 10, right: 10, bottom: 10, top: 10}
+                        },
+                        tooltips: {enabled: true},
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    suggestedMin: 0,
+                                    suggestedMax: 18,
+                                }
+                            }]
+                        }
+                };
+
+                const config2 = {
+                    type: 'line',
+                    data: data2,
+                    options: options2
+                };
+
+                let myChart2 = new Chart(graph2, config2);
             </script>
+            {% endif %}
+            
+            {% if gid == 9 %}
+            <script>
+                let graph = document.getElementById('graph').getContext('2d');
+                Chart.defaults.global.defaultFontFamily = 'PT Root UI';
+                Chart.defaults.global.defaultFontSize = 18;
+                Chart.defaults.global.defaultFontColor = 'black';
+                const data = {
+                        labels: {{ labels }},
+                        datasets: [{
+                            fill: false,
+                            label: "{{ name }}",
+                            data: {{ current }},
+                            backgroundColor: "#0069D1",
+                            borderColor: "#0069D1",
+                            pointRadius: 3,
+                            borderWidth: 3,
+                        }, {
+                            fill: false,
+                            label: "Остальные учащиеся",
+                            data: {{ others }},
+                            backgroundColor: "#FF7828",
+                            borderColor: "#FF7828",
+                            pointRadius: 4,
+                            borderWidth: 5,
+                        }]
+                };
+                const options = {
+                        elements: {
+                            line: {tension: 0}
+                        },
+                        title: {
+                            display: false,
+                            text: "{{ theme }}",
+                            fontSize: 25
+                        },
+                        legend: {
+                            display: true,
+                            position: "bottom",
+                            labels: {fontColor: "black"}
+                        },
+                        layout: {
+                            padding: {left: 10, right: 10, bottom: 10, top: 10}
+                        },
+                        tooltips: {enabled: true},
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    suggestedMin: 0,
+                                    suggestedMax: 100,
+                                }
+                            }]
+                        }
+                };
+
+                const config = {
+                    type: 'line',
+                    data: data,
+                    options: options
+                };
+
+                let myChart = new Chart(graph, config);
+                </script>
+                {% endif %}
         </div>
     </div>
-    {% if current_user.student_id == 999 %}
+    {% if current_user.student_id == 1 %}
         <button type="button" class="btn back-to-admin-btn from-stats" onclick="location.href='/admin'">Админка</button>
     {% endif %}
     <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>

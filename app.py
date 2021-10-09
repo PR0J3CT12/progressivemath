@@ -11,7 +11,7 @@ from transliterate import translit
 import threading
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SECRET_FILE = os.path.join(BASE_DIR, 'secret/secret.json')
+SECRET_FILE = os.path.join(BASE_DIR, 'secret/secret1.json')
 with open(SECRET_FILE, 'r') as f:
     secret_data = json.load(f)
 app = Flask(__name__)
@@ -137,7 +137,7 @@ def stats_page(pid):
         connection, cursor = db_connection()
         cursor.execute('SELECT student_name FROM students WHERE student_id = %s', (pid,))
         current_student_name = cursor.fetchall()[0][0]
-        cursor.execute('SELECT * FROM comparing_last_homework(%s)', (pid,))
+        cursor.execute("SELECT * FROM get_last_classwork_others(%s);", (pid,))
         last_homework_others = cursor.fetchall()[0][0]
         cursor.execute('SELECT * FROM get_last_homework_score(%s)', (pid,))
         last_homework = cursor.fetchall()[0][0]
@@ -175,9 +175,9 @@ def stats_page(pid):
                     tmp_2.append(el[2])
             labels = []
             for i in range(1, len(tmp_1) + 1):
-                labels.append(str(i))
+                labels.append(i)
             if len(labels) == 1:
-                labels.append("2")
+                labels.append(2)
         elif gid == 2:
             theme = 'Части'
             for el in themes_grades:
@@ -186,9 +186,9 @@ def stats_page(pid):
                     tmp_2.append(el[2])
             labels = []
             for i in range(1, len(tmp_1) + 1):
-                labels.append(str(i))
+                labels.append(i)
             if len(labels) == 1:
-                labels.append("2")
+                labels.append(2)
         elif gid == 3:
             theme = 'Движение'
             for el in themes_grades:
@@ -197,9 +197,9 @@ def stats_page(pid):
                     tmp_2.append(el[2])
             labels = []
             for i in range(1, len(tmp_1) + 1):
-                labels.append(str(i))
+                labels.append(i)
             if len(labels) == 1:
-                labels.append("2")
+                labels.append(2)
         elif gid == 4:
             theme = 'Совместная работа'
             for el in themes_grades:
@@ -208,9 +208,9 @@ def stats_page(pid):
                     tmp_2.append(el[2])
             labels = []
             for i in range(1, len(tmp_1) + 1):
-                labels.append(str(i))
+                labels.append(i)
             if len(labels) == 1:
-                labels.append("2")
+                labels.append(2)
         elif gid == 5:
             theme = 'Обратный ход'
             for el in themes_grades:
@@ -219,9 +219,9 @@ def stats_page(pid):
                     tmp_2.append(el[2])
             labels = []
             for i in range(1, len(tmp_1) + 1):
-                labels.append(str(i))
+                labels.append(i)
             if len(labels) == 1:
-                labels.append("2")
+                labels.append(2)
         elif gid == 6:
             theme = 'Головы и ноги'
             for el in themes_grades:
@@ -230,9 +230,9 @@ def stats_page(pid):
                     tmp_2.append(el[2])
             labels = []
             for i in range(1, len(tmp_1) + 2):
-                labels.append(str(i))
+                labels.append(i)
             if len(labels) == 1:
-                labels.append("2")
+                labels.append(2)
         elif gid == 7:
             theme = 'Письменный экзамен'
             for el in exam_grades:
@@ -248,6 +248,7 @@ def stats_page(pid):
         data = [int(last_homework), int(last_homework_others)]
         cursor.close()
         connection.close()
+        print(labels, tmp_1, tmp_2)
         return render_template("stats_page.html", data=data, name=current_student_name, pid=pid, gid=gid, ex=exam, ex_s=exam_speaking, themes=themes, labels=labels, grade_limit=grade_limit, current=tmp_1, others=tmp_2, theme=theme)
     else:
         return redirect(url_for('stats_page', pid=current_user.student_id))

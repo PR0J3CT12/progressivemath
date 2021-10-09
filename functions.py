@@ -1,11 +1,8 @@
-# coding: utf-8
-import threading
-import time
+# -*- coding: utf-8 -*-
 from collections import defaultdict
 from random import randint
 from transliterate import translit
 from werkzeug.security import generate_password_hash
-import psycopg2
 import os.path
 import os
 import json
@@ -16,20 +13,26 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from platform import python_version
-from apscheduler.schedulers.blocking import BlockingScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+import threading
+import time
+import pymysql
+from pymysql.constants import CLIENT
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SAVE_DIR = os.path.join(BASE_DIR, 'total_info.json')
 SECRET_FILE = os.path.join(BASE_DIR, 'secret/secret.json')
+with open(SECRET_FILE, 'r') as f:
+    secret_data = json.load(f)
+db_user = secret_data['db_user']
+db_password = secret_data['db_password']
+db_host = secret_data['db_host']
+db_port = secret_data['db_port']
+db_name = secret_data['db_name']
 PASSWORDS_FILE = os.path.join(BASE_DIR, 'secret/passwords.txt')
 STATIC_DIR = os.path.join(BASE_DIR, 'static/')
 FONT = os.path.join(STATIC_DIR, 'font.ttf')
-with open(SECRET_FILE, 'r') as f:
-    secret_data = json.load(f)
-scheduler = BlockingScheduler()
-SPREADSHEET_ID_TEST = '1QMzDbyOHjA1qW1WrH99pIRuuvR7IFyrPifAbQXWUMb4'
+#SPREADSHEET_ID = '1QMzDbyOHjA1qW1WrH99pIRuuvR7IFyrPifAbQXWUMb4'
 SPREADSHEET_ID = '1saZ765b_vW0iGx5GHkvQYvosUhmsTRSorRq8woZ7twM'
 sheet_names = ['Площадь класс', 'Площадь дз', 'Части класс', 'Части дз',
                'Движение класс', 'Движение дз', 'Совместная работа класс', 'Совместная работа дз',
@@ -91,7 +94,7 @@ def db_connection():
     Возвращает connection и cursor
     """
     try:
-        connection = psycopg2.connect(user=secret_data["db_user"], password=secret_data["db_password"], host=secret_data["db_host"], port=secret_data["db_port"], dbname=secret_data["db_name"])
+        connection = pymysql.connect(host=db_host, user=db_user, password=db_password, database=db_name, client_flag=CLIENT.MULTI_STATEMENTS)#, cursorclass=pymysql.cursors.DictCursor)
         cursor = connection.cursor()
         return connection, cursor
     except:
@@ -119,7 +122,8 @@ def admin_creator():
     """
     connection, cursor = db_connection()
     hash_my = generate_password_hash(secret_data["admin_password"])
-    cursor.execute("INSERT INTO students VALUES (%s, %s, %s, %s); COMMIT;", (999, 'admin', 'admin', hash_my))
+    cursor.execute("INSERT INTO students(student_id, student_name, student_login, student_password) VALUES(%s, %s, %s, %s)", (0, 'admin', 'admin', hash_my))
+    connection.commit()
     if connection:
         cursor.close()
         connection.close()
@@ -134,15 +138,31 @@ def db_update_students():
     service = service_function()
     sheet_name = sheet_names[0]
     connection, cursor = db_connection()
-    cursor.execute("SELECT student_row FROM students")
-    used_rows = cursor.fetchall()
+    cursor.execute("SELECT student_id, student_row FROM students WHERE student_id > 1")
+    rec = cursor.fetchall()
+    used_rows = []
+    used_ids = []
+    print(rec)
+    for i in rec:
+        used_ids.append(i[0])
+        used_rows.append(i[1])
+    if used_ids:
+        last_id = max(used_ids) + 1
+    else:
+        last_id = 1
+    print(last_id)
+    cursor.execute('ALTER TABLE students AUTO_INCREMENT = %s', last_id)
+    cursor.execute("SELECT * FROM students WHERE student_id=1;")
+    admin_tmp = cursor.fetchall()
+    if len(admin_tmp) == 0:
+        admin_creator()
     students_amount = len(service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A4:A50').execute()['values'])
     jump = False
     values = ()
     for i in range(0, students_amount):
         row = i + 4
         for j in range(len(used_rows)):
-            if row in used_rows[j]:
+            if row in used_rows:
                 jump = True
                 continue
         if jump:
@@ -158,16 +178,13 @@ def db_update_students():
     execute_tmp = ''
     execute_string = "INSERT INTO students(student_name, student_login, student_password, student_row) VALUES"
     execute_string_perc = "(%s, %s, %s, %s)"
-    for j in range(students_amount - 1):
+    for j in range(len(values)//4 - 1):
         execute_tmp += execute_string_perc + ', '
-    execute_tmp += execute_string_perc + '; '
-    execute_string += execute_tmp + 'COMMIT;'
+    execute_tmp += execute_string_perc
+    execute_string += execute_tmp
     if values:
         cursor.execute(execute_string, values)
-    cursor.execute("SELECT * FROM students WHERE student_id=999;")
-    admin_tmp = cursor.fetchall()
-    if len(admin_tmp) == 0:
-        admin_creator()
+        connection.commit()
     if connection:
         cursor.close()
         connection.close()
@@ -241,7 +258,28 @@ def total_info_creator():
             el['Последняя классная работа'] = 'Классная работа №1'
         if 'Последняя домашняя работа' not in el:
             el['Последняя домашняя работа'] = 'Домашнее задание №1'
-    return total_student_information
+    data = total_student_information[:-1]
+    with open(SAVE_DIR, "w") as file:
+        json.dump(data, file)
+    return total_student_information[:-1]
+
+
+def total_info_creator_test():
+    """
+    Функция для объединения всех листов после info_creator | TEST!!!
+    """
+    total_student_information = info_creator(sheet_names[0])
+    for i in range(1, len(sheet_names)):
+        current_sheet_students = info_creator(sheet_names[i])
+        for j in range(len(current_sheet_students)):
+            total_student_information[j] = {**total_student_information[j], **current_sheet_students[j]}
+    for el in total_student_information:
+        if 'Последняя классная работа' not in el:
+            el['Последняя классная работа'] = 'Классная работа №1'
+        if 'Последняя домашняя работа' not in el:
+            el['Последняя домашняя работа'] = 'Домашнее задание №1'
+    data = total_student_information[:-1]
+    return total_student_information[:-1]
 
 
 def borders(sheet_name):
@@ -274,9 +312,11 @@ def db_update_works_info():
     """
     Функция для перезаписи таблицы works
     """
+    start = time.time()
     service = service_function()
     connection, cursor = db_connection()
-    cursor.execute("TRUNCATE TABLE works RESTART IDENTITY CASCADE;")
+    cursor.execute("DELETE FROM works WHERE work_id >= 1")
+    cursor.execute('ALTER TABLE works AUTO_INCREMENT = 1')
     for i in range(len(sheet_names)):
         sheet_name = sheet_names[i]
         full_list = service.get(spreadsheetId=SPREADSHEET_ID, range=f'{sheet_name}!A1:ZZ3').execute()['values']
@@ -302,7 +342,8 @@ def db_update_works_info():
             work_name = names_list[j]
             works_info.append([work_name, sheet_name, to_string, is_homework])
         for j in range(len(works_info)):
-            cursor.execute("INSERT INTO works(work_name, sheet_name, grades_string, is_homework) VALUES (%s, %s, %s, %s); COMMIT", (works_info[j][0], works_info[j][1], works_info[j][2], works_info[j][3]))
+            cursor.execute("INSERT INTO works(work_name, sheet_name, grades_string, is_homework) VALUES (%s, %s, %s, %s)", (works_info[j][0], works_info[j][1], works_info[j][2], int(works_info[j][3])))
+            connection.commit()
     if connection:
         cursor.close()
         connection.close()
@@ -316,7 +357,8 @@ def mana_give_function(student_id):
     connection, cursor = db_connection()
     cursor.execute("SELECT SUM(mana) FROM total_grades RIGHT JOIN works ON work_id = fk_work_id WHERE fk_student_id = %s AND is_homework = 'True';", (student_id,))
     mana = cursor.fetchall()[0][0]
-    cursor.execute("UPDATE students SET mana_earned = %s WHERE student_id = %s; COMMIT;", (mana, student_id))
+    cursor.execute("UPDATE students SET mana_earned = %s WHERE student_id = %s;", (mana, student_id))
+    connection.commit()
     if connection:
         cursor.close()
         connection.close()
@@ -328,66 +370,36 @@ def lvl_update(student_id):
     На вход student_id
     """
     connection, cursor = db_connection()
-    cursor.execute('SELECT current_score FROM get_sum_classworks_score(%s)', (student_id,))
-    classworks_sum = cursor.fetchall()[0][0]
-    cursor.execute('SELECT current_score FROM get_sum_homeworks_score(%s)', (student_id,))
-    homeworks_sum = cursor.fetchall()[0][0]
-    if classworks_sum < 50:
-        classwork_lvl = 1
-    elif 50 <= classworks_sum < 110:
-        classwork_lvl = 2
-    elif 110 <= classworks_sum < 180:
-        classwork_lvl = 3
-    elif 180 <= classworks_sum < 260:
-        classwork_lvl = 4
-    elif 260 <= classworks_sum < 350:
-        classwork_lvl = 5
-    elif 350 <= classworks_sum < 450:
-        classwork_lvl = 6
-    elif 450 <= classworks_sum < 560:
-        classwork_lvl = 7
-    elif 560 <= classworks_sum < 680:
-        classwork_lvl = 8
-    elif 680 <= classworks_sum < 810:
-        classwork_lvl = 9
-    elif 810 <= classworks_sum < 950:
-        classwork_lvl = 10
-    elif 950 <= classworks_sum < 1100:
-        classwork_lvl = 11
-    else:
-        classwork_lvl = 12
-    if homeworks_sum < 50:
+    cursor.execute('CALL `get_sum_homeworks_score`(%s, @p1, @p2); SELECT @p1 AS `current_max_score`, @p2 AS `current_score`', student_id)
+    homeworks_score = cursor.fetchall()[0]
+    homeworks_sum = int(homeworks_score[1] / homeworks_score[0] * 100)
+    if homeworks_sum < 10:
         homework_lvl = 1
-    elif 50 <= homeworks_sum < 110:
+    elif 10 <= homeworks_sum < 20:
         homework_lvl = 2
-    elif 110 <= homeworks_sum < 180:
+    elif 20 <= homeworks_sum < 30:
         homework_lvl = 3
-    elif 180 <= homeworks_sum < 260:
+    elif 30 <= homeworks_sum < 40:
         homework_lvl = 4
-    elif 260 <= homeworks_sum < 350:
+    elif 40 <= homeworks_sum < 50:
         homework_lvl = 5
-    elif 350 <= homeworks_sum < 450:
+    elif 50 <= homeworks_sum < 60:
         homework_lvl = 6
-    elif 450 <= homeworks_sum < 560:
+    elif 60 <= homeworks_sum < 70:
         homework_lvl = 7
-    elif 560 <= homeworks_sum < 680:
+    elif 70 <= homeworks_sum < 80:
         homework_lvl = 8
-    elif 680 <= homeworks_sum < 810:
+    elif 80 <= homeworks_sum < 90:
         homework_lvl = 9
-    elif 810 <= homeworks_sum < 950:
-        homework_lvl = 10
-    elif 950 <= homeworks_sum < 1100:
-        homework_lvl = 11
     else:
-        homework_lvl = 12
-    cursor.execute("UPDATE students SET homework_lvl = %s WHERE student_id = %s; COMMIT;", (homework_lvl, student_id))
-    cursor.execute("UPDATE students SET classwork_lvl = %s WHERE student_id = %s; COMMIT;", (classwork_lvl, student_id))
+        homework_lvl = 10
+    cursor.execute("UPDATE students SET homework_lvl = %s WHERE student_id = %s;", (homework_lvl, student_id))
+    connection.commit()
     if connection:
         cursor.close()
         connection.close()
 
 
-@scheduler.scheduled_job(IntervalTrigger(minutes=3))
 def db_update_total_grades():
     """
     Функция для перезаписи таблицы total_grades
@@ -395,84 +407,100 @@ def db_update_total_grades():
     print('db start:', threading.currentThread().name)
     start = time.time()
     connection, cursor = db_connection()
-    cursor.execute("TRUNCATE TABLE total_grades; SELECT student_id, student_row FROM students WHERE student_id < 999;")
+    cursor.execute("DELETE FROM total_grades WHERE score > -1")
+    connection.commit()
+    cursor.execute("SELECT student_id, student_row FROM students WHERE student_id > 1;")
     students = cursor.fetchall()
-    results = total_info_creator()
-    cursor.execute("SELECT work_id, work_name FROM works;")
-    record = cursor.fetchall()
-    cursor.execute("SELECT grades_string FROM works;")
-    grades_strings = cursor.fetchall()
-    values = ()
-    for student in students:
-        current_student_id = student[0]
-        current_student_row = student[1]
-        current_student_results = results[current_student_row - 4]
-        for work in record:
-            current_work_name = work[1]
-            current_work_id = work[0]
-            current_last_homework = current_student_results['Последняя домашняя работа']
-            current_last_classwork = current_student_results['Последняя классная работа']
-            cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_homework,))
-            current_last_homework_id = cursor.fetchall()[0][0]
-            cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_classwork,))
-            current_last_classwork_id = cursor.fetchall()[0][0]
-            cursor.execute("UPDATE students SET last_homework_id = %s WHERE student_id = %s; UPDATE students SET last_classwork_id = %s WHERE student_id = %s; COMMIT;", (current_last_homework_id, current_student_id, current_last_classwork_id, current_student_id))
-            current_work_grades_list = current_student_results[current_work_name]
-            current_work_grade_string = grades_strings[current_work_id - 1][0].split(' ')
-            current_work_grade = 0
-            current_exercises = 0
-            current_max_score = 0
-            for j in current_work_grade_string:
-                if float(j) == 0:
-                    current_exercises += 0
-                    current_max_score += 0
-                else:
-                    current_exercises += 1
-                    current_max_score += float(j)
-            for i in range(len(current_work_grades_list)):
-                if current_work_grades_list[i] == '':
-                    current_work_grade += 0
-                elif current_work_grades_list[i] == '-':
-                    current_max_score -= float(current_work_grade_string[i])
-                    current_exercises -= 1
-                else:
-                    current_work_grade += float(current_work_grades_list[i])
-            current_tuple = (current_student_id, current_work_id, current_work_grade, current_max_score, current_exercises)
-            values += current_tuple
-    execute_tmp = ''
-    execute_string = "INSERT INTO total_grades(fk_student_id, fk_work_id, score, max_score, exercises) VALUES"
-    execute_string_perc = "(%s, %s, %s, %s, %s)"
-    tries = len(record) * len(students)
-    for j in range(tries - 1):
-        execute_tmp += execute_string_perc + ', '
-    execute_tmp += execute_string_perc + '; '
-    execute_string += execute_tmp + 'COMMIT;'
-    if values:
-        cursor.execute(execute_string, values)
-    for student in students:
-        current_student_id = student[0]
-        for work in record:
-            current_work_id = work[0]
-            cursor.execute("SELECT * FROM get_current_homework_score(%s, %s)", (current_student_id, current_work_id))
-            tmp_var = cursor.fetchall()[0][0]
-            if tmp_var is not None:
-                percentage = float(tmp_var)
-                if 0 < percentage <= 25:
-                    mana = 1
-                elif 25 < percentage <= 50:
-                    mana = 2
-                elif 50 < percentage <= 75:
-                    mana = 3
-                elif 75 < percentage <= 100:
-                    mana = 4
-                else:
-                    mana = 0
-                cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s; COMMIT;", (mana, current_student_id, current_work_id))
-        lvl_update(current_student_id)
-    if connection:
-        cursor.close()
-        connection.close()
-    print('db end:', time.time() - start)
+    start_2 = time.time()
+    #results = total_info_creator()
+    with open(SAVE_DIR, "r") as file:
+        results = json.load(file)
+        api = time.time() - start_2
+        #print('API:', api)
+        cursor.execute("SELECT work_id, work_name FROM works;")
+        record = cursor.fetchall()
+        cursor.execute("SELECT grades_string FROM works;")
+        grades_strings = cursor.fetchall()
+        values = ()
+        for student in students:
+            current_student_id = student[0]
+            current_student_row = student[1]
+            current_student_results = results[current_student_row - 4]
+            for work in record:
+                current_work_name = work[1]
+                current_work_id = work[0]
+                current_last_homework = current_student_results['Последняя домашняя работа']
+                current_last_classwork = current_student_results['Последняя классная работа']
+                cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_homework,))
+                current_last_homework_id = cursor.fetchall()[0][0]
+                cursor.execute("SELECT work_id FROM works WHERE work_name = %s", (current_last_classwork,))
+                current_last_classwork_id = cursor.fetchall()[0][0]
+                cursor.execute("UPDATE students SET last_homework_id = %s WHERE student_id = %s;", (current_last_homework_id, current_student_id))
+                connection.commit()
+                cursor.execute("UPDATE students SET last_classwork_id = %s WHERE student_id = %s;", (current_last_classwork_id, current_student_id))
+                connection.commit()
+                current_work_grades_list = current_student_results[current_work_name]
+                current_work_grade_string = grades_strings[current_work_id - 1][0].split(' ')
+                current_work_grade = 0
+                current_exercises = 0
+                current_max_score = 0
+                for j in current_work_grade_string:
+                    if float(j) == 0:
+                        current_exercises += 0
+                        current_max_score += 0
+                    else:
+                        current_exercises += 1
+                        current_max_score += float(j)
+                for i in range(len(current_work_grades_list)):
+                    if current_work_grades_list[i] == '':
+                        current_work_grade += 0
+                    elif current_work_grades_list[i] == '-':
+                        current_max_score -= float(current_work_grade_string[i])
+                        current_exercises -= 1
+                    else:
+                        current_work_grade += float(current_work_grades_list[i])
+                current_tuple = (current_student_id, current_work_id, current_work_grade, current_max_score, current_exercises)
+                values += current_tuple
+        execute_tmp = ''
+        execute_string = "INSERT INTO total_grades(fk_student_id, fk_work_id, score, max_score, exercises) VALUES"
+        execute_string_perc = "(%s, %s, %s, %s, %s)"
+        tries = len(record) * len(students)
+        for j in range(tries - 1):
+            execute_tmp += execute_string_perc + ', '
+        execute_tmp += execute_string_perc + '; '
+        execute_string += execute_tmp
+        if values:
+            cursor.execute(execute_string, values)
+            connection.commit()
+        for student in students:
+            current_student_id = student[0]
+            for work in record:
+                current_work_id = work[0]
+                cursor.execute("CALL `get_current_homework_score`(%s, %s, @p2); SELECT @p2 AS `perc`;", (current_student_id, current_work_id))
+                tmp_var = cursor.fetchall()[0][0]
+                if tmp_var is not None:
+                    percentage = int(tmp_var)
+                    if 0 < percentage <= 25:
+                        mana = 1
+                    elif 25 < percentage <= 50:
+                        mana = 2
+                    elif 50 < percentage <= 75:
+                        mana = 3
+                    elif 75 < percentage <= 100:
+                        mana = 4
+                    else:
+                        mana = 0
+                    cursor.execute("UPDATE total_grades SET mana = %s WHERE fk_student_id = %s AND fk_work_id = %s;", (mana, current_student_id, current_work_id))
+                    connection.commit()
+        connection.commit()
+        for student in students:
+            current_student_id = student[0]
+            lvl_update(current_student_id)
+        if connection:
+            cursor.close()
+            connection.close()
+        print('2:', time.time() - start - api)
+        print('db end:', time.time() - start)
 
 
 def split_grades_themes(themes_grades_list):
@@ -483,14 +511,6 @@ def split_grades_themes(themes_grades_list):
     return grades
 
 
-def wait():
-    print('start')
-    start = time.time()
-    time.sleep(5)
-    timee = time.time() - start
-    print('finish', timee)
-    print(threading.currentThread().name)
-
-
 if __name__ == '__main__':
-    scheduler.start()
+    pass
+    #scheduler.start()

@@ -54,13 +54,13 @@ data[8] - id ученика
         <div>
             <p id="last_p">Мана: {{ data[6] }}</p>
         </div>
-        <div class="student_buttons_box">
+        <div class="1student_buttons_box">
             <p class="but_p"><button type="button" class="btn btn-more" onclick="location.href=`/stats/{{ data[8] }}`">Подробная статистика</button></p>
             <p class="but_p"><button type="button" class="btn btn-rating" onclick="location.href='/rating'">Рейтинг</button></p>
         </div>
     </div>
     <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
-    {% if current_user.student_id == 999 %}
+    {% if current_user.student_id == 1 %}
         <button type="button" class="btn back-to-admin-btn" onclick="location.href='/admin'">Админка</button>
     {% endif %}
 {% endblock %}
