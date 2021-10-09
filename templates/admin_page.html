@@ -13,6 +13,9 @@ data - ожидающие ману:
     ...[3] - Заработано маны
 -->
 {% block body %}
+    {% for msg in get_flashed_messages() %}
+        <div class="flash admin-flash">{{ msg }}</div>
+    {% endfor %}
     <div>
         <h1>Панель администратора</h1>
         <ul>
@@ -27,9 +30,7 @@ data - ожидающие ману:
                 }
             </script>
         </ul>
-
         <div class="container">
-
             <div class="students_list_box">
                 <h2>Список учеников</h2>
                 {% for student in students %}
@@ -57,5 +58,6 @@ data - ожидающие ману:
             </div>
         </div>
     </div>
+    <button type="button" class="btn btn-doc" onclick="location.href='/documentation'">Документация</button>
     <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
 {% endblock %}
