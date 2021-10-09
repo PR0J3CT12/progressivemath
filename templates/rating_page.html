@@ -13,12 +13,14 @@ data - список учеников в бд:
     <div class="rating_block">
         <h1>Рейтинг</h1>
         {% for student in data %}
-            <div {% if current_id == student[0] %} class="current_rating" {% endif %} id="{{ student[0] }}">
-                <p> {{ student[1] }} | {{ student[2] }} уровень</p>
+            <div {% if current_id == student[0] %} class="current_rating_box current_rating" {% else %} class="current_rating_box" {% endif %} id="{{ student[0] }}">
+                <p>{{ student[1] }}</p>
+                <p>{{ student[2] }} уровень</p>
             </div>
         {% endfor %}
+        <div class="rating_space">   </div>
     </div>
-    {% if current_user.student_id == 999 %}
+    {% if current_user.student_id == 1 %}
         <button type="button" class="btn back-to-admin-btn from-stats" onclick="location.href='/admin'">Админка</button>
     {% endif %}
     <button type="button" class="btn btn-logout" id="logout-btn" onclick="location.href='/logout'">Выйти</button>
